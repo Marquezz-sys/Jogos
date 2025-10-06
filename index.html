@@ -30,7 +30,7 @@
             transition: box-shadow 0.3s ease;
         }
         main:focus-within {
-             /* NOVO: Brilho da cor da fruta ajustado para o novo tom */
+             /* Brilho da cor da fruta ajustado */
              box-shadow: 0 0 30px rgba(255, 176, 58, 0.7);
         }
         .instructions {
@@ -44,7 +44,7 @@
 </head>
 <body>
     <!-- O p5.js irá injetar o canvas dentro desta tag <main> -->
-    <main id="main"></main> <!-- CORRIGIDO: Adicionado o id="main" -->
+    <main id="main"></main> <!-- Adicionado o id="main" -->
     <!-- Instruções atualizadas -->
     <div class="instructions">Use as setas ou **WASD** para mover a cobrinha!</div>
 
@@ -55,6 +55,7 @@
         let scl = 20; // Escala (tamanho de cada segmento da cobrinha e da comida)
         let score = 0;
         let isGameOver = false;
+        const WIN_SCORE = 10; // Pontuação necessária para vencer
 
         /**
          * Função de configuração inicial do p5.js.
@@ -98,6 +99,12 @@
         function draw() {
             background(45, 55, 72); // Cor de fundo do canvas (Azul escuro/cinza)
 
+            // NOVO: Verifica a condição de vitória
+            if (score >= WIN_SCORE) {
+                drawWinScreen();
+                return;
+            }
+
             if (isGameOver) {
                 // Desenha a tela de game over
                 drawGameOverScreen();
@@ -136,6 +143,24 @@
             textSize(24);
             fill(150, 200, 255); // Cor mais clara para a instrução de reinício
             text('Pressione ESPAÇO para Reiniciar', width / 2, height / 2 + 50);
+        }
+
+        /**
+         * NOVO: Desenha a tela de vitória.
+         */
+        function drawWinScreen() {
+            textSize(48);
+            fill(150, 255, 150); // Verde vibrante para vitória
+            textAlign(CENTER, CENTER);
+            text('VOCÊ VENCEU!', width / 2, height / 2 - 40);
+
+            textSize(28);
+            fill(255);
+            text('Pontuação Final: ' + score, width / 2, height / 2 + 10);
+
+            textSize(24);
+            fill(200, 255, 255); // Cor para a instrução de reinício
+            text('Pressione ESPAÇO para Jogar Novamente', width / 2, height / 2 + 50);
         }
 
         /**
@@ -206,7 +231,6 @@
 
             /**
              * Atualiza a posição da cobra e o rastro da cauda.
-             * CORREÇÃO: Usa push/shift para evitar erro de índice na inicialização.
              */
             this.update = function() {
                 // 1. Adiciona a posição da cabeça à cauda
@@ -319,14 +343,14 @@
         function keyPressed() {
             // KeyCodes: ESPAÇO=32, W=87, A=65, S=83, D=68
 
-            // Se for Game Over e a tecla for ESPAÇO (32), reinicia o jogo
-            if (isGameOver && keyCode === 32) {
+            // Verifica se o jogo deve ser reiniciado (Game Over OU Vitoria)
+            if ((isGameOver || score >= WIN_SCORE) && keyCode === 32) {
                 resetGame();
                 return;
             }
 
             // Se o jogo estiver ativo, processa as teclas de direção
-            if (!isGameOver) {
+            if (!isGameOver && score < WIN_SCORE) {
                 switch (keyCode) {
                     case UP_ARROW:
                     case 87: // W (Cima)

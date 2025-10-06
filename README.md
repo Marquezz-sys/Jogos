@@ -16,7 +16,11 @@ O jogo está hospedado e pode ser acessado diretamente através do GitHub Pages.
 Após alguns instantes, o seu jogo estará disponível em um link como este:
 `https://[SEU-NOME-DE-USUARIO].github.io/[NOME-DO-REPOSITORIO]/`
 
+## Objetivo
+
+O objetivo é atingir **10 pontos**. Ao alcançar essa pontuação, você vence o jogo!
+
 ## Controles
 
 *   **Setas Direcionais** ou **WASD**: Mover a cobra.
-*   **Barra de Espaço**: Reiniciar o jogo após perder.
+*   **Barra de Espaço**: Reiniciar o jogo após perder ou vencer.
