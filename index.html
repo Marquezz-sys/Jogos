@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Cobrinha (p5.js)</title>
+    <!-- Inclui a biblioteca p5.js -->
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.js"></script>
+    <style>
+        /* Importa a fonte retrô */
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #1a202c; /* Fundo escuro */
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            margin: 0;
+            flex-direction: column;
+        }
+        main {
+            /* Estilo para a área do canvas */
+            border: 4px solid #4a5568;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            transition: box-shadow 0.3s ease;
+        }
+        main:focus-within {
+             /* NOVO: Brilho da cor da fruta ajustado para o novo tom */
+             box-shadow: 0 0 30px rgba(255, 176, 58, 0.7);
+        }
+        .instructions {
+            margin-top: 1.5rem;
+            color: #a0aec0;
+            font-size: 1.5rem;
+            text-align: center;
+            text-shadow: 1px 1px 2px #000;
+        }
+    </style>
+</head>
+<body>
+    <!-- O p5.js irá injetar o canvas dentro desta tag <main> -->
+    <main id="main"></main> <!-- CORRIGIDO: Adicionado o id="main" -->
+    <!-- Instruções atualizadas -->
+    <div class="instructions">Use as setas ou **WASD** para mover a cobrinha!</div>
+
+    <script>
+        // Variáveis globais do jogo
+        let s;       // Objeto Snake (Cobrinha)
+        let food;    // Vetor de posição da Comida
+        let scl = 20; // Escala (tamanho de cada segmento da cobrinha e da comida)
+        let score = 0;
+        let isGameOver = false;
+
+        /**
+         * Função de configuração inicial do p5.js.
+         * Chamada uma vez ao carregar.
+         */
+        function setup() {
+            // Define o tamanho do canvas para ser responsivo, mas com um máximo
+            const canvasWidth = Math.min(window.innerWidth - 32, 640);
+            const canvasHeight = Math.min(window.innerHeight - 100, 480);
+            const canvas = createCanvas(canvasWidth, canvasHeight);
+            canvas.parent('main'); // Agora encontra o elemento <main id="main">
+
+            // O frameRate foi ajustado para 10 para tornar o jogo mais lento.
+            frameRate(10);
+            resetGame();
+        }
+
+        /**
+         * Reinicia o estado do jogo.
+         */
+        function resetGame() {
+            s = new Snake();
+            isGameOver = false;
+            score = 0;
+
+            // Centraliza a cobra no ponto inicial
+            let centerX = floor(width / (2 * scl)) * scl;
+            let centerY = floor(height / (2 * scl)) * scl;
+            s.x = centerX;
+            s.y = centerY;
+            // Garante que a cobra comece movendo para a direita
+            s.dir(1, 0);
+
+            pickLocation();
+        }
+
+        /**
+         * Função de loop do p5.js.
+         * Chamada repetidamente na taxa de frameRate.
+         */
+        function draw() {
+            background(45, 55, 72); // Cor de fundo do canvas (Azul escuro/cinza)
+
+            if (isGameOver) {
+                // Desenha a tela de game over
+                drawGameOverScreen();
+                return;
+            }
+
+            // Lógica do jogo
+            s.update();
+            s.checkDeath();
+
+            // Desenho da comida
+            drawFood();
+
+            // Verifica se a cobra comeu a comida
+            if (s.eat(food)) {
+                score++;
+                pickLocation();
+            }
+
+            s.show(); // Desenha a cobra por último para que fique por cima da comida
+            drawScore();
+        }
+
+        /**
+         * Desenha a tela de fim de jogo.
+         */
+        function drawGameOverScreen() {
+            textSize(48);
+            fill(255, 255, 255);
+            textAlign(CENTER, CENTER);
+            text('FIM DE JOGO!', width / 2, height / 2 - 40);
+
+            textSize(28);
+            text('Pontuação Final: ' + score, width / 2, height / 2 + 10);
+
+            textSize(24);
+            fill(150, 200, 255); // Cor mais clara para a instrução de reinício
+            text('Pressione ESPAÇO para Reiniciar', width / 2, height / 2 + 50);
+        }
+
+        /**
+         * Desenha a comida com um leve efeito de perspectiva 3D.
+         */
+        function drawFood() {
+            // Fator de perspectiva: mais embaixo (maior y) é maior (mais perto)
+            let perspectiveFactor = map(food.y, 0, height, 0.8, 1.2);
+            let foodSize = scl * perspectiveFactor;
+
+            // Laranja Ligeiramente Mais Escuro (#FFB03A)
+            fill(255, 176, 58);
+            noStroke();
+            rectMode(CORNER);
+
+            // Desenha um quadrado suavemente arredondado para a comida
+            rect(food.x, food.y, foodSize, foodSize, 5);
+        }
+
+        /**
+         * Desenha a pontuação atual no canto superior direito.
+         */
+        function drawScore() {
+            textSize(28);
+            fill(255, 255, 255);
+            // Alinha o texto à direita e no topo
+            textAlign(RIGHT, TOP);
+            // Posiciona no canto superior direito (largura - 10px, 10px)
+            text('PONTOS: ' + score, width - 10, 10);
+        }
+
+        /**
+         * Construtor do objeto Snake (Cobrinha).
+         */
+        function Snake() {
+            this.x = 0;
+            this.y = 0;
+            this.xspeed = 1;
+            this.yspeed = 0;
+            this.total = 0; // Comprimento da cauda desejado
+            this.tail = []; // Array para armazenar os vetores da cauda
+
+            /**
+             * Altera a direção da cobra, impedindo o movimento reverso imediato.
+             */
+            this.dir = function(x, y) {
+                // Impede a inversão no eixo X
+                if (this.xspeed === -x && x !== 0) return;
+                // Impede a inversão no eixo Y
+                if (this.yspeed === -y && y !== 0) return;
+
+                this.xspeed = x;
+                this.yspeed = y;
+            }
+
+            /**
+             * Verifica se a cabeça da cobra atingiu a posição da comida.
+             */
+            this.eat = function(pos) {
+                let d = dist(this.x, this.y, pos.x, pos.y);
+                if (d < 1) {
+                    this.total++;
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            /**
+             * Atualiza a posição da cobra e o rastro da cauda.
+             * CORREÇÃO: Usa push/shift para evitar erro de índice na inicialização.
+             */
+            this.update = function() {
+                // 1. Adiciona a posição da cabeça à cauda
+                this.tail.push(createVector(this.x, this.y));
+
+                // 2. Se a cauda for maior que o tamanho desejado (total), remove o elemento mais antigo
+                if (this.tail.length > this.total) {
+                    this.tail.shift();
+                }
+
+                // 3. Move a cabeça:
+                this.x = this.x + this.xspeed * scl;
+                this.y = this.y + this.yspeed * scl;
+            }
+
+            /**
+             * Verifica se a cobra colidiu com as bordas ou consigo mesma.
+             */
+            this.checkDeath = function() {
+                // Checa colisão com as bordas
+                if (this.x >= width || this.x < 0 || this.y >= height || this.y < 0) {
+                    isGameOver = true;
+                    return;
+                }
+
+                // Checa colisão com o próprio corpo
+                for (let i = 0; i < this.tail.length; i++) {
+                    let pos = this.tail[i];
+                    let d = dist(this.x, this.y, pos.x, pos.y);
+                    // Garante que não está checando a colisão da cabeça com ela mesma
+                    if (this.total > 0 && d < 1) {
+                        isGameOver = true;
+                        return;
+                    }
+                }
+            }
+
+            /**
+             * Desenha a cobra (cabeça e cauda).
+             */
+            this.show = function() {
+                noStroke();
+                rectMode(CORNER);
+
+                // Desenha o corpo da cobra com efeito de perspectiva e transparência gradual
+                for (let i = 0; i < this.tail.length; i++) {
+                    let pos = this.tail[i];
+                    // Fator de perspectiva: mais embaixo (maior y) é maior (mais perto)
+                    let perspectiveFactor = map(pos.y, 0, height, 0.8, 1.2);
+                    let segmentSize = scl * perspectiveFactor;
+
+                    // A transparência diminui em segmentos mais antigos (mais para o início do array)
+                    let alpha = map(i, 0, this.tail.length - 1, 150, 255);
+
+                    fill(255, 140, 0, alpha); // Cor da cobra (Laranja Escuro - #FF8C00)
+                    rect(pos.x, pos.y, segmentSize, segmentSize, 3);
+                }
+
+                // Desenha a cabeça da cobra
+                let headPerspectiveFactor = map(this.y, 0, height, 0.8, 1.2);
+                let headSize = scl * headPerspectiveFactor;
+                fill(255, 140, 0); // Cor da cabeça da cobra (Laranja Escuro - #FF8C00)
+                rect(this.x, this.y, headSize, headSize, 3);
+
+                // Desenha os "olhos" na cabeça para indicar a direção
+                fill(0); // Preto
+                let eyeSize = headSize * 0.15;
+                if (this.xspeed === 1) { // Direita
+                    ellipse(this.x + headSize * 0.7, this.y + headSize * 0.3, eyeSize);
+                    ellipse(this.x + headSize * 0.7, this.y + headSize * 0.7, eyeSize);
+                } else if (this.xspeed === -1) { // Esquerda
+                    ellipse(this.x + headSize * 0.3, this.y + headSize * 0.3, eyeSize);
+                    ellipse(this.x + headSize * 0.3, this.y + headSize * 0.7, eyeSize);
+                } else if (this.yspeed === 1) { // Baixo
+                    ellipse(this.x + headSize * 0.3, this.y + headSize * 0.7, eyeSize);
+                    ellipse(this.x + headSize * 0.7, this.y + headSize * 0.7, eyeSize);
+                } else if (this.yspeed === -1) { // Cima
+                    ellipse(this.x + headSize * 0.3, this.y + headSize * 0.3, eyeSize);
+                    ellipse(this.x + headSize * 0.7, this.y + headSize * 0.3, eyeSize);
+                }
+            }
+        }
+
+        /**
+         * Escolhe um local aleatório para a comida.
+         */
+        function pickLocation() {
+            // Calcula o número de colunas e linhas
+            let cols = floor(width / scl);
+            let rows = floor(height / scl);
+
+            // Gera um vetor com coordenadas de grid aleatórias
+            food = createVector(floor(random(cols)), floor(random(rows)));
+
+            // Converte as coordenadas de grid para coordenadas de pixel
+            food.mult(scl);
+
+            // Garante que a comida não apareça dentro da cobra
+            for (let i = 0; i < s.tail.length; i++) {
+                if (food.x === s.tail[i].x && food.y === s.tail[i].y) {
+                    pickLocation();
+                    return;
+                }
+            }
+        }
+
+        /**
+         * Função chamada a cada toque de tecla.
+         */
+        function keyPressed() {
+            // KeyCodes: ESPAÇO=32, W=87, A=65, S=83, D=68
+
+            // Se for Game Over e a tecla for ESPAÇO (32), reinicia o jogo
+            if (isGameOver && keyCode === 32) {
+                resetGame();
+                return;
+            }
+
+            // Se o jogo estiver ativo, processa as teclas de direção
+            if (!isGameOver) {
+                switch (keyCode) {
+                    case UP_ARROW:
+                    case 87: // W (Cima)
+                        s.dir(0, -1);
+                        break;
+                    case DOWN_ARROW:
+                    case 83: // S (Baixo)
+                        s.dir(0, 1);
+                        break;
+                    case LEFT_ARROW:
+                    case 65: // A (Esquerda - Padrão WASD)
+                        s.dir(-1, 0);
+                        break;
+                    case RIGHT_ARROW:
+                    case 68: // D (Direita - Padrão WASD)
+                        s.dir(1, 0);
+                        break;
+                }
+            }
+        }
+
+        /**
+         * Ajusta o canvas quando a janela é redimensionada.
+         */
+        function windowResized() {
+            // Recalcula as dimensões responsivas
+            const newWidth = Math.min(window.innerWidth - 32, 640);
+            const newHeight = Math.min(window.innerHeight - 100, 480);
+
+            // Redimensiona o canvas do p5.js
+            resizeCanvas(newWidth, newHeight);
+
+            // Reposiciona a comida para se adequar ao novo tamanho
+            pickLocation();
+        }
+    </script>
+</body>
+</html>
