@@ -6,9 +6,13 @@
     <title>Jogo da Cobrinha (p5.js)</title>
     <!-- Inclui a biblioteca p5.js -->
     <script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.js"></script>
+    <!-- Inclui o Tailwind CSS para o estilo do relógio e da interface -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Importa a fonte retrô */
+        /* Importa a fonte retrô para o jogo */
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        /* Importa a fonte Inter para o relógio */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
 
         body {
             font-family: 'VT323', monospace;
@@ -23,7 +27,7 @@
             flex-direction: column;
         }
         main {
-            /* Estilo para a área do canvas */
+            /* Estilo para a área do canvas do jogo */
             border: 4px solid #4a5568;
             border-radius: 8px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
@@ -40,37 +44,157 @@
             text-align: center;
             text-shadow: 1px 1px 2px #000;
         }
+
+        /* Estilos do relógio */
+        #clock-view {
+            width: 100%;
+            height: 100vh;
+            display: none; /* Escondido por padrão */
+            font-family: 'Inter', sans-serif; /* Usar Inter para o relógio */
+            /* Fundo com um gradiente suave para uma aparência mais agradável */
+            background: linear-gradient(135deg, #a7b7c2, #5a6d7a);
+        }
+        #clock-view .clock-container {
+             /* Centraliza o relógio dentro da view */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        @keyframes dance {
+            0%, 100% { transform: translateY(0); }
+            25% { transform: translateY(-5px) rotate(5deg); }
+            50% { transform: translateY(0) rotate(-5deg); }
+            75% { transform: translateY(-5px) rotate(5deg); }
+        }
+
+        #sapo {
+            animation: dance 1s infinite alternate;
+        }
     </style>
 </head>
-<body>
-    <!-- O p5.js irá injetar o canvas dentro desta tag <main> -->
-    <main id="main"></main> <!-- Adicionado o id="main" -->
-    <!-- Instruções atualizadas -->
-    <div class="instructions">Use as setas ou **WASD** para mover a cobrinha!</div>
+<body class="text-white flex items-center justify-center min-h-screen">
+
+    <!-- 1. Visão do Jogo (p5.js Canvas) -->
+    <div id="game-view" class="flex flex-col items-center">
+        <!-- O p5.js irá injetar o canvas dentro desta tag <main> -->
+        <main id="main"></main>
+        <!-- Instruções atualizadas -->
+        <div class="instructions">Use as setas ou **WASD** para mover a cobrinha!</div>
+    </div>
+
+    <!-- 2. Visão do Relógio (HTML puro) -->
+    <div id="clock-view">
+        <div class="clock-container">
+            <div class="flex flex-col md:flex-row items-center p-8 bg-gray-800 rounded-2xl shadow-lg border-2 border-gray-700 max-w-lg w-full mx-4">
+
+                <!-- Sapo dançante -->
+                <div id="sapo" class="text-6xl md:text-8xl mb-4 md:mb-0 md:mr-6">
+                    🐸
+                </div>
+
+                <div class="flex flex-col items-center">
+                    <h1 class="text-3xl font-bold mb-4 text-center">Horário de Brasília</h1>
+                    <div id="relogio" class="text-6xl md:text-7xl font-mono font-bold text-green-400">
+                        00:00:00
+                    </div>
+                    <p class="mt-4 text-sm text-gray-400 text-center">A hora é atualizada a cada segundo.</p>
+                </div>
+            </div>
+
+            <!-- Botão de Voltar ao Jogo -->
+            <button id="back-to-game-btn" onclick="showView('splash')"
+                class="mt-8 px-6 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg transition duration-300 hover:bg-red-700 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50">
+                VOLTAR AO JOGO
+            </button>
+        </div>
+    </div>
 
     <script>
         // Variáveis globais do jogo
-        let s;       // Objeto Snake (Cobrinha)
-        let food;    // Vetor de posição da Comida
-        let scl = 20; // Escala (tamanho de cada segmento da cobrinha e da comida)
+        let s;
+        let food;
+        let scl = 20;
         let score = 0;
         let isGameOver = false;
-        const WIN_SCORE = 10; // Pontuação necessária para vencer
+        const WIN_SCORE = 10;
+        let winButtonBounds = null;
+
+        // NOVO: Variável para controlar a visualização atual
+        let currentView = 'splash'; // 'splash', 'game', 'game_over', 'win', 'clock'
+
+        // Variável para armazenar o intervalo de atualização do relógio
+        let clockInterval;
 
         /**
-         * Função de configuração inicial do p5.js.
-         * Chamada uma vez ao carregar.
+         * Alterna a visualização entre o jogo e o relógio.
+         */
+        function showView(viewName) {
+            currentView = viewName;
+            const gameView = document.getElementById('game-view');
+            const clockView = document.getElementById('clock-view');
+
+            if (viewName === 'clock') {
+                gameView.style.display = 'none';
+                clockView.style.display = 'flex';
+                // Garante que o relógio está a funcionar
+                initClock();
+            } else {
+                gameView.style.display = 'flex';
+                clockView.style.display = 'none';
+                // Para o jogo na tela inicial
+                if (viewName === 'splash') {
+                    resetGame();
+                }
+            }
+        }
+
+        /**
+         * Inicializa o p5.js e o jogo.
          */
         function setup() {
             // Define o tamanho do canvas para ser responsivo, mas com um máximo
             const canvasWidth = Math.min(window.innerWidth - 32, 640);
             const canvasHeight = Math.min(window.innerHeight - 100, 480);
             const canvas = createCanvas(canvasWidth, canvasHeight);
-            canvas.parent('main'); // Agora encontra o elemento <main id="main">
+            canvas.parent('main');
 
-            // O frameRate foi ajustado para 10 para tornar o jogo mais lento.
             frameRate(10);
             resetGame();
+
+            // Inicia o jogo na tela de abertura
+            showView('splash');
+
+            // Inicia o loop do relógio para que ele esteja sempre atualizado
+            initClock();
+        }
+
+        /**
+         * Lógica de inicialização do relógio digital (do código fornecido pelo usuário).
+         */
+        function initClock() {
+            if (clockInterval) clearInterval(clockInterval);
+
+            function atualizarRelogio() {
+                const relogioElemento = document.getElementById('relogio');
+                if (relogioElemento) {
+                    const agora = new Date();
+                    const opcoes = {
+                        timeZone: 'America/Sao_Paulo',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    };
+                    const horarioBrasilia = agora.toLocaleTimeString('pt-BR', opcoes);
+                    relogioElemento.textContent = horarioBrasilia;
+                }
+            }
+
+            atualizarRelogio();
+            clockInterval = setInterval(atualizarRelogio, 1000);
         }
 
         /**
@@ -80,13 +204,12 @@
             s = new Snake();
             isGameOver = false;
             score = 0;
+            winButtonBounds = null;
 
-            // Centraliza a cobra no ponto inicial
             let centerX = floor(width / (2 * scl)) * scl;
             let centerY = floor(height / (2 * scl)) * scl;
             s.x = centerX;
             s.y = centerY;
-            // Garante que a cobra comece movendo para a direita
             s.dir(1, 0);
 
             pickLocation();
@@ -94,38 +217,57 @@
 
         /**
          * Função de loop do p5.js.
-         * Chamada repetidamente na taxa de frameRate.
          */
         function draw() {
-            background(45, 55, 72); // Cor de fundo do canvas (Azul escuro/cinza)
+            background(45, 55, 72);
 
-            // NOVO: Verifica a condição de vitória
-            if (score >= WIN_SCORE) {
-                drawWinScreen();
-                return;
+            // O desenho só acontece se a visualização for 'game' ou 'win' ou 'game_over'
+            if (currentView === 'game') {
+                // Lógica do jogo
+                s.update();
+                s.checkDeath();
+
+                drawFood();
+
+                if (s.eat(food)) {
+                    score++;
+                    pickLocation();
+                }
+
+                s.show();
+                drawScore();
+
+                // Verifica a condição de vitória
+                if (score >= WIN_SCORE) {
+                    currentView = 'win';
+                }
             }
 
-            if (isGameOver) {
-                // Desenha a tela de game over
+            if (currentView === 'splash') {
+                drawSplashScreen();
+            } else if (currentView === 'game_over') {
                 drawGameOverScreen();
-                return;
+            } else if (currentView === 'win') {
+                drawWinScreen();
             }
+        }
 
-            // Lógica do jogo
-            s.update();
-            s.checkDeath();
+        /**
+         * Desenha a tela de abertura.
+         */
+        function drawSplashScreen() {
+            textSize(64);
+            fill(255, 255, 255);
+            textAlign(CENTER, CENTER);
+            text('JOGO DA COBRINHA', width / 2, height / 2 - 80);
 
-            // Desenho da comida
-            drawFood();
+            textSize(36);
+            fill(150, 255, 150);
+            text('Pressione ESPAÇO para começar o jogo', width / 2, height / 2 + 20);
 
-            // Verifica se a cobra comeu a comida
-            if (s.eat(food)) {
-                score++;
-                pickLocation();
-            }
-
-            s.show(); // Desenha a cobra por último para que fique por cima da comida
-            drawScore();
+            textSize(20);
+            fill(100, 150, 200);
+            text('Use as setas ou WASD para se mover.', width / 2, height / 2 + 80);
         }
 
         /**
@@ -141,54 +283,69 @@
             text('Pontuação Final: ' + score, width / 2, height / 2 + 10);
 
             textSize(24);
-            fill(150, 200, 255); // Cor mais clara para a instrução de reinício
+            fill(150, 200, 255);
             text('Pressione ESPAÇO para Reiniciar', width / 2, height / 2 + 50);
         }
 
         /**
-         * NOVO: Desenha a tela de vitória.
+         * Desenha a tela de vitória, incluindo o botão de "próximo jogo".
          */
         function drawWinScreen() {
             textSize(48);
-            fill(150, 255, 150); // Verde vibrante para vitória
+            fill(150, 255, 150);
             textAlign(CENTER, CENTER);
-            text('VOCÊ VENCEU!', width / 2, height / 2 - 40);
+            text('VOCÊ VENCEU!', width / 2, height / 2 - 60);
 
             textSize(28);
             fill(255);
-            text('Pontuação Final: ' + score, width / 2, height / 2 + 10);
+            text('Pontuação Final: ' + score, width / 2, height / 2 - 10);
 
-            textSize(24);
-            fill(200, 255, 255); // Cor para a instrução de reinício
-            text('Pressione ESPAÇO para Jogar Novamente', width / 2, height / 2 + 50);
+            // --- Desenho do Botão "VER RELÓGIO" ---
+
+            let btnW = 300;
+            let btnH = 45;
+            let btnX = width / 2 - btnW / 2;
+            let btnY = height / 2 + 50;
+
+            // Armazena as dimensões do botão para detecção de clique
+            winButtonBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+            // Botão background (Azul suave)
+            fill(66, 153, 225);
+            rect(btnX, btnY, btnW, btnH, 8);
+
+            // Botão texto
+            textSize(22);
+            fill(255);
+            textAlign(CENTER, CENTER);
+            text('VER RELÓGIO', width / 2, btnY + btnH / 2 + 3);
+
+            // Instrução alternativa de reinício (SPACE)
+            textSize(18);
+            fill(200, 255, 255);
+            text('Ou Pressione ESPAÇO para Jogar Novamente', width / 2, height / 2 + 120);
         }
 
         /**
-         * Desenha a comida com um leve efeito de perspectiva 3D.
+         * Desenha a comida.
          */
         function drawFood() {
-            // Fator de perspectiva: mais embaixo (maior y) é maior (mais perto)
             let perspectiveFactor = map(food.y, 0, height, 0.8, 1.2);
             let foodSize = scl * perspectiveFactor;
 
-            // Laranja Ligeiramente Mais Escuro (#FFB03A)
-            fill(255, 176, 58);
+            fill(255, 176, 58); // Laranja Ligeiramente Mais Escuro (#FFB03A)
             noStroke();
             rectMode(CORNER);
-
-            // Desenha um quadrado suavemente arredondado para a comida
             rect(food.x, food.y, foodSize, foodSize, 5);
         }
 
         /**
-         * Desenha a pontuação atual no canto superior direito.
+         * Desenha a pontuação.
          */
         function drawScore() {
             textSize(28);
             fill(255, 255, 255);
-            // Alinha o texto à direita e no topo
             textAlign(RIGHT, TOP);
-            // Posiciona no canto superior direito (largura - 10px, 10px)
             text('PONTOS: ' + score, width - 10, 10);
         }
 
@@ -200,25 +357,17 @@
             this.y = 0;
             this.xspeed = 1;
             this.yspeed = 0;
-            this.total = 0; // Comprimento da cauda desejado
-            this.tail = []; // Array para armazenar os vetores da cauda
+            this.total = 0;
+            this.tail = [];
 
-            /**
-             * Altera a direção da cobra, impedindo o movimento reverso imediato.
-             */
             this.dir = function(x, y) {
-                // Impede a inversão no eixo X
                 if (this.xspeed === -x && x !== 0) return;
-                // Impede a inversão no eixo Y
                 if (this.yspeed === -y && y !== 0) return;
 
                 this.xspeed = x;
                 this.yspeed = y;
             }
 
-            /**
-             * Verifica se a cabeça da cobra atingiu a posição da comida.
-             */
             this.eat = function(pos) {
                 let d = dist(this.x, this.y, pos.x, pos.y);
                 if (d < 1) {
@@ -229,85 +378,69 @@
                 }
             }
 
-            /**
-             * Atualiza a posição da cobra e o rastro da cauda.
-             */
             this.update = function() {
-                // 1. Adiciona a posição da cabeça à cauda
                 this.tail.push(createVector(this.x, this.y));
 
-                // 2. Se a cauda for maior que o tamanho desejado (total), remove o elemento mais antigo
                 if (this.tail.length > this.total) {
                     this.tail.shift();
                 }
 
-                // 3. Move a cabeça:
                 this.x = this.x + this.xspeed * scl;
                 this.y = this.y + this.yspeed * scl;
             }
 
-            /**
-             * Verifica se a cobra colidiu com as bordas ou consigo mesma.
-             */
             this.checkDeath = function() {
-                // Checa colisão com as bordas
                 if (this.x >= width || this.x < 0 || this.y >= height || this.y < 0) {
                     isGameOver = true;
+                    currentView = 'game_over'; // Atualiza o estado
                     return;
                 }
 
-                // Checa colisão com o próprio corpo
                 for (let i = 0; i < this.tail.length; i++) {
                     let pos = this.tail[i];
                     let d = dist(this.x, this.y, pos.x, pos.y);
-                    // Garante que não está checando a colisão da cabeça com ela mesma
                     if (this.total > 0 && d < 1) {
                         isGameOver = true;
+                        currentView = 'game_over'; // Atualiza o estado
                         return;
                     }
                 }
             }
 
-            /**
-             * Desenha a cobra (cabeça e cauda).
-             */
             this.show = function() {
                 noStroke();
                 rectMode(CORNER);
 
-                // Desenha o corpo da cobra com efeito de perspectiva e transparência gradual
+                // Desenha o corpo
                 for (let i = 0; i < this.tail.length; i++) {
                     let pos = this.tail[i];
-                    // Fator de perspectiva: mais embaixo (maior y) é maior (mais perto)
                     let perspectiveFactor = map(pos.y, 0, height, 0.8, 1.2);
                     let segmentSize = scl * perspectiveFactor;
-
-                    // A transparência diminui em segmentos mais antigos (mais para o início do array)
                     let alpha = map(i, 0, this.tail.length - 1, 150, 255);
 
-                    fill(255, 140, 0, alpha); // Cor da cobra (Laranja Escuro - #FF8C00)
+                    fill(255, 140, 0, alpha); // Laranja Escuro (#FF8C00)
                     rect(pos.x, pos.y, segmentSize, segmentSize, 3);
                 }
 
-                // Desenha a cabeça da cobra
+                // Desenha a cabeça
                 let headPerspectiveFactor = map(this.y, 0, height, 0.8, 1.2);
                 let headSize = scl * headPerspectiveFactor;
-                fill(255, 140, 0); // Cor da cabeça da cobra (Laranja Escuro - #FF8C00)
+                fill(255, 140, 0); // Laranja Escuro (#FF8C00)
                 rect(this.x, this.y, headSize, headSize, 3);
 
-                // Desenha os "olhos" na cabeça para indicar a direção
-                fill(0); // Preto
+                // Desenha os "olhos"
+                fill(0);
                 let eyeSize = headSize * 0.15;
-                if (this.xspeed === 1) { // Direita
+                if (this.xspeed === 1) {
                     ellipse(this.x + headSize * 0.7, this.y + headSize * 0.3, eyeSize);
                     ellipse(this.x + headSize * 0.7, this.y + headSize * 0.7, eyeSize);
-                } else if (this.xspeed === -1) { // Esquerda
+                } else if (this.xspeed === -1) {
                     ellipse(this.x + headSize * 0.3, this.y + headSize * 0.3, eyeSize);
                     ellipse(this.x + headSize * 0.3, this.y + headSize * 0.7, eyeSize);
-                } else if (this.yspeed === 1) { // Baixo
+                } else if (this.yspeed === 1) {
                     ellipse(this.x + headSize * 0.3, this.y + headSize * 0.7, eyeSize);
                     ellipse(this.x + headSize * 0.7, this.y + headSize * 0.7, eyeSize);
-                } else if (this.yspeed === -1) { // Cima
+                } else if (this.yspeed === -1) {
                     ellipse(this.x + headSize * 0.3, this.y + headSize * 0.3, eyeSize);
                     ellipse(this.x + headSize * 0.7, this.y + headSize * 0.3, eyeSize);
                 }
@@ -318,17 +451,12 @@
          * Escolhe um local aleatório para a comida.
          */
         function pickLocation() {
-            // Calcula o número de colunas e linhas
             let cols = floor(width / scl);
             let rows = floor(height / scl);
 
-            // Gera um vetor com coordenadas de grid aleatórias
             food = createVector(floor(random(cols)), floor(random(rows)));
-
-            // Converte as coordenadas de grid para coordenadas de pixel
             food.mult(scl);
 
-            // Garante que a comida não apareça dentro da cobra
             for (let i = 0; i < s.tail.length; i++) {
                 if (food.x === s.tail[i].x && food.y === s.tail[i].y) {
                     pickLocation();
@@ -341,16 +469,23 @@
          * Função chamada a cada toque de tecla.
          */
         function keyPressed() {
-            // KeyCodes: ESPAÇO=32, W=87, A=65, S=83, D=68
+            // Se estiver no relógio, ignorar
+            if (currentView === 'clock') return;
 
-            // Verifica se o jogo deve ser reiniciado (Game Over OU Vitoria)
-            if ((isGameOver || score >= WIN_SCORE) && keyCode === 32) {
-                resetGame();
-                return;
+            // ESPAÇO (32) sempre trata início/reinício
+            if (keyCode === 32) {
+                if (currentView === 'splash') {
+                    showView('game');
+                    return;
+                }
+                if (currentView === 'game_over' || currentView === 'win') {
+                    showView('splash');
+                    return;
+                }
             }
 
-            // Se o jogo estiver ativo, processa as teclas de direção
-            if (!isGameOver && score < WIN_SCORE) {
+            // Movimento só se estiver no jogo ativo
+            if (currentView === 'game') {
                 switch (keyCode) {
                     case UP_ARROW:
                     case 87: // W (Cima)
@@ -361,11 +496,11 @@
                         s.dir(0, 1);
                         break;
                     case LEFT_ARROW:
-                    case 65: // A (Esquerda - Padrão WASD)
+                    case 65: // A (Esquerda)
                         s.dir(-1, 0);
                         break;
                     case RIGHT_ARROW:
-                    case 68: // D (Direita - Padrão WASD)
+                    case 68: // D (Direita)
                         s.dir(1, 0);
                         break;
                 }
@@ -373,18 +508,34 @@
         }
 
         /**
+         * Verifica cliques do mouse.
+         */
+        function mouseClicked() {
+            // Clicar no botão "VER RELÓGIO"
+            if (currentView === 'win' && winButtonBounds) {
+                if (
+                    mouseX > winButtonBounds.x &&
+                    mouseX < winButtonBounds.x + winButtonBounds.w &&
+                    mouseY > winButtonBounds.y &&
+                    mouseY < winButtonBounds.y + winButtonBounds.h
+                ) {
+                    showView('clock');
+                }
+            }
+        }
+
+
+        /**
          * Ajusta o canvas quando a janela é redimensionada.
          */
         function windowResized() {
-            // Recalcula as dimensões responsivas
-            const newWidth = Math.min(window.innerWidth - 32, 640);
-            const newHeight = Math.min(window.innerHeight - 100, 480);
-
-            // Redimensiona o canvas do p5.js
-            resizeCanvas(newWidth, newHeight);
-
-            // Reposiciona a comida para se adequar ao novo tamanho
-            pickLocation();
+             // Só redimensiona o canvas se a vista não for 'clock'
+            if (currentView !== 'clock') {
+                const newWidth = Math.min(window.innerWidth - 32, 640);
+                const newHeight = Math.min(window.innerHeight - 100, 480);
+                resizeCanvas(newWidth, newHeight);
+                pickLocation();
+            }
         }
     </script>
 </body>
