@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jogo da Cobrinha (p5.js)</title>
-    <!-- Inclui a biblioteca p5.js -->
+    <title>Jogo da Cobrinha Retro</title>
+    <!-- Inclui a biblioteca p5.js para o jogo -->
     <script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.js"></script>
     <!-- Inclui o Tailwind CSS para o estilo do relógio e da interface -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Importa a fonte retrô para o jogo */
+        /* Importa a fonte retrô (VT323) para o jogo e títulos */
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        /* Importa a fonte Inter para o relógio */
+        /* Importa a fonte Inter para o relógio digital */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
 
         body {
             font-family: 'VT323', monospace;
-            background-color: #1a202c; /* Fundo escuro */
             color: #fff;
             display: flex;
             justify-content: center;
@@ -25,16 +24,41 @@
             overflow: hidden;
             margin: 0;
             flex-direction: column;
+
+            /* Necessário para posicionar o pseudo-elemento de fundo */
+            position: relative;
+            background-color: #1a202c; /* Cor de fundo de fallback/base */
         }
+
+        /* Pseudo-elemento para o fundo da página (Imagem com filtro) */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Usando a imagem carregada */
+            background-image: url('uploaded:image_bb8868.png-2577ce53-c52d-4631-a115-5157a8977ef6');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            z-index: -1; /* Coloca a imagem atrás de todo o conteúdo */
+
+            /* Filtros para garantir visibilidade do texto */
+            filter: brightness(1.5) blur(2px) contrast(1.1);
+        }
+
+        /* Estilo da borda do canvas do jogo */
         main {
-            /* Estilo para a área do canvas do jogo */
             border: 4px solid #4a5568;
             border-radius: 8px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
             transition: box-shadow 0.3s ease;
         }
+        /* Efeito de brilho ao focar (simulando a fruta) */
         main:focus-within {
-             /* Brilho da cor da fruta ajustado */
              box-shadow: 0 0 30px rgba(255, 176, 58, 0.7);
         }
         .instructions {
@@ -45,13 +69,13 @@
             text-shadow: 1px 1px 2px #000;
         }
 
-        /* Estilos do relógio */
+        /* Estilos da Visão do Relógio */
         #clock-view {
             width: 100%;
             height: 100vh;
             display: none; /* Escondido por padrão */
             font-family: 'Inter', sans-serif; /* Usar Inter para o relógio */
-            /* Fundo com um gradiente suave para uma aparência mais agradável */
+            /* Fundo com um gradiente */
             background: linear-gradient(135deg, #a7b7c2, #5a6d7a);
         }
         #clock-view .clock-container {
@@ -63,13 +87,13 @@
             min-height: 100vh;
             text-align: center;
         }
+        /* Animação do sapo */
         @keyframes dance {
             0%, 100% { transform: translateY(0); }
             25% { transform: translateY(-5px) rotate(5deg); }
             50% { transform: translateY(0) rotate(-5deg); }
             75% { transform: translateY(-5px) rotate(5deg); }
         }
-
         #sapo {
             animation: dance 1s infinite alternate;
         }
@@ -77,12 +101,14 @@
 </head>
 <body class="text-white flex items-center justify-center min-h-screen">
 
-    <!-- 1. Visão do Jogo (p5.js Canvas) -->
+    <!-- 1. Visão do Jogo (p5.js Canvas) e Menu -->
     <div id="game-view" class="flex flex-col items-center">
         <!-- O p5.js irá injetar o canvas dentro desta tag <main> -->
         <main id="main"></main>
-        <!-- Instruções atualizadas -->
-        <div class="instructions">Use as setas ou **WASD** para mover a cobrinha!</div>
+        <!-- Instruções de movimento, visível apenas no modo Jogo -->
+        <div id="game-instructions" class="instructions" style="display: none;">
+            Use as setas ou **WASD** para mover a cobrinha!
+        </div>
     </div>
 
     <!-- 2. Visão do Relógio (HTML puro) -->
@@ -90,7 +116,7 @@
         <div class="clock-container">
             <div class="flex flex-col md:flex-row items-center p-8 bg-gray-800 rounded-2xl shadow-lg border-2 border-gray-700 max-w-lg w-full mx-4">
 
-                <!-- Sapo dançante -->
+                <!-- Sapo dançante animado -->
                 <div id="sapo" class="text-6xl md:text-8xl mb-4 md:mb-0 md:mr-6">
                     🐸
                 </div>
@@ -104,37 +130,48 @@
                 </div>
             </div>
 
-            <!-- Botão de Voltar ao Jogo -->
-            <button id="back-to-game-btn" onclick="showView('splash')"
+            <!-- Botão de Voltar ao Menu -->
+            <button id="back-to-menu-btn" onclick="showView('menu')"
                 class="mt-8 px-6 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg transition duration-300 hover:bg-red-700 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50">
-                VOLTAR AO JOGO
+                VOLTAR AO MENU
             </button>
         </div>
     </div>
 
     <script>
-        // Variáveis globais do jogo
-        let s;
-        let food;
+        // =======================================================
+        // VARIÁVEIS GLOBAIS E ESTADO DO JOGO
+        // =======================================================
+        let s;      
+        let food;    
         let scl = 20;
         let score = 0;
         let isGameOver = false;
-        const WIN_SCORE = 10;
-        let winButtonBounds = null;
+        const WIN_SCORE = 10; // Pontuação necessária para vencer
 
-        // NOVO: Variável para controlar a visualização atual
-        let currentView = 'splash'; // 'splash', 'game', 'game_over', 'win', 'clock'
+        // Limites dos botões desenhados no p5.js (para detecção de clique)
+        let winButtonBounds = null;
+        let menuGameButtonBounds = null;
+        let menuClockButtonBounds = null;
+
+        // Variável para controlar a visualização atual. Inicia em 'menu'.
+        let currentView = 'menu'; // 'menu', 'game', 'game_over', 'win', 'clock'
 
         // Variável para armazenar o intervalo de atualização do relógio
         let clockInterval;
 
+        // =======================================================
+        // FUNÇÕES DE GERENCIAMENTO DE VISTA (VIEW)
+        // =======================================================
+
         /**
-         * Alterna a visualização entre o jogo e o relógio.
+         * Alterna a visualização entre o menu/jogo (p5.js) e o relógio (HTML).
          */
         function showView(viewName) {
             currentView = viewName;
             const gameView = document.getElementById('game-view');
             const clockView = document.getElementById('clock-view');
+            const gameInstructions = document.getElementById('game-instructions');
 
             if (viewName === 'clock') {
                 gameView.style.display = 'none';
@@ -144,42 +181,28 @@
             } else {
                 gameView.style.display = 'flex';
                 clockView.style.display = 'none';
-                // Para o jogo na tela inicial
-                if (viewName === 'splash') {
+
+                // Exibe as instruções de movimento apenas quando o jogo estiver ativo
+                gameInstructions.style.display = (viewName === 'game') ? 'block' : 'none';
+
+                // Reinicia o jogo ao voltar para o menu ou iniciar o jogo
+                if (viewName === 'menu' || viewName === 'game') {
                     resetGame();
                 }
             }
         }
 
         /**
-         * Inicializa o p5.js e o jogo.
-         */
-        function setup() {
-            // Define o tamanho do canvas para ser responsivo, mas com um máximo
-            const canvasWidth = Math.min(window.innerWidth - 32, 640);
-            const canvasHeight = Math.min(window.innerHeight - 100, 480);
-            const canvas = createCanvas(canvasWidth, canvasHeight);
-            canvas.parent('main');
-
-            frameRate(10);
-            resetGame();
-
-            // Inicia o jogo na tela de abertura
-            showView('splash');
-
-            // Inicia o loop do relógio para que ele esteja sempre atualizado
-            initClock();
-        }
-
-        /**
-         * Lógica de inicialização do relógio digital (do código fornecido pelo usuário).
+         * Inicializa o relógio digital, definindo a hora de Brasília.
          */
         function initClock() {
+            // Limpa o intervalo anterior para evitar múltiplos loops
             if (clockInterval) clearInterval(clockInterval);
 
             function atualizarRelogio() {
                 const relogioElemento = document.getElementById('relogio');
                 if (relogioElemento) {
+                    // Usando a API de Data para obter o tempo em São Paulo/Brasília
                     const agora = new Date();
                     const opcoes = {
                         timeZone: 'America/Sao_Paulo',
@@ -197,6 +220,157 @@
             clockInterval = setInterval(atualizarRelogio, 1000);
         }
 
+        // =======================================================
+        // FUNÇÕES DO P5.JS (SETUP, DRAW, EVENTOS)
+        // =======================================================
+
+        /**
+         * Inicializa o p5.js e o canvas.
+         */
+        function setup() {
+            // Define o tamanho do canvas para ser responsivo (máximo 640x480)
+            const canvasWidth = Math.min(window.innerWidth - 32, 640);
+            const canvasHeight = Math.min(window.innerHeight - 100, 480);
+            const canvas = createCanvas(canvasWidth, canvasHeight);
+            canvas.parent('main');
+
+            // Define a taxa de quadros (velocidade do jogo)
+            frameRate(10);
+            resetGame();
+
+            // Inicia o jogo na tela do menu
+            showView('menu');
+
+            // Inicia o loop do relógio para que ele esteja sempre atualizado em segundo plano
+            initClock();
+        }
+
+        /**
+         * Função de loop principal do p5.js.
+         */
+        function draw() {
+            // Fundo do canvas do JOGO: Cor sólida escura (Dark Gray/Blue-ish)
+            // Se estiver no Menu, o background será transparente para mostrar a imagem de fundo do BODY
+            if (currentView === 'menu') {
+                background(45, 55, 72, 0);
+                drawMenuScreen();
+            } else {
+                background(45, 55, 72); // Fundo sólido para as telas de jogo/fim/vitória
+
+                if (currentView === 'game') {
+                    // --- Lógica do Jogo Ativo ---
+                    s.update();
+                    s.checkDeath();
+
+                    drawFood();
+
+                    if (s.eat(food)) {
+                        score++;
+                        pickLocation();
+                    }
+
+                    s.show();
+                    drawScore();
+
+                    // Verifica a condição de vitória
+                    if (score >= WIN_SCORE) {
+                        currentView = 'win';
+                    }
+                } else if (currentView === 'game_over') {
+                    drawGameOverScreen();
+                } else if (currentView === 'win') {
+                    drawWinScreen();
+                }
+            }
+        }
+
+        /**
+         * Função chamada a cada toque de tecla (WASD/Setas para movimento, ESPAÇO para Menu/Início).
+         */
+        function keyPressed() {
+            // Se estiver no relógio, ignorar
+            if (currentView === 'clock') return;
+
+            // ESPAÇO (32) sempre trata início/reinício/menu
+            if (keyCode === 32) {
+                if (currentView === 'menu') {
+                    showView('game');
+                    return;
+                }
+                if (currentView === 'game_over' || currentView === 'win') {
+                    showView('menu');
+                    return;
+                }
+            }
+
+            // Movimento só se estiver no jogo ativo
+            if (currentView === 'game') {
+                switch (keyCode) {
+                    case UP_ARROW:
+                    case 87: // W (Cima)
+                        s.dir(0, -1);
+                        break;
+                    case DOWN_ARROW:
+                    case 83: // S (Baixo)
+                        s.dir(0, 1);
+                        break;
+                    case LEFT_ARROW:
+                    case 65: // A (Esquerda)
+                        s.dir(-1, 0);
+                        break;
+                    case RIGHT_ARROW:
+                    case 68: // D (Direita)
+                        s.dir(1, 0);
+                        break;
+                }
+            }
+        }
+
+        /**
+         * Verifica cliques do mouse nos botões desenhados no p5.js (Menu e Vitória).
+         */
+        function mouseClicked() {
+            // Função auxiliar para verificar se o mouse está sobre o botão
+            const isOver = (bounds) => {
+                return mouseX > bounds.x &&
+                       mouseX < bounds.x + bounds.w &&
+                       mouseY > bounds.y &&
+                       mouseY < bounds.y + bounds.h;
+            };
+
+            // Clicar nos botões do Menu
+            if (currentView === 'menu') {
+                if (menuGameButtonBounds && isOver(menuGameButtonBounds)) {
+                    showView('game');
+                } else if (menuClockButtonBounds && isOver(menuClockButtonBounds)) {
+                    showView('clock');
+                }
+            }
+
+            // Clicar no botão "VER RELÓGIO" na tela de vitória
+            if (currentView === 'win' && winButtonBounds && isOver(winButtonBounds)) {
+                showView('clock');
+            }
+        }
+
+        /**
+         * Ajusta o canvas quando a janela é redimensionada.
+         */
+        function windowResized() {
+             // Só redimensiona o canvas se a vista não for 'clock'
+            if (currentView !== 'clock') {
+                const newWidth = Math.min(window.innerWidth - 32, 640);
+                const newHeight = Math.min(window.innerHeight - 100, 480);
+                resizeCanvas(newWidth, newHeight);
+                // Gera nova localização para a comida após redimensionamento
+                pickLocation();
+            }
+        }
+
+        // =======================================================
+        // FUNÇÕES DO JOGO (COBRINHA E COMIDA)
+        // =======================================================
+
         /**
          * Reinicia o estado do jogo.
          */
@@ -204,95 +378,131 @@
             s = new Snake();
             isGameOver = false;
             score = 0;
-            winButtonBounds = null;
-
+            // Centraliza a cobrinha no início do jogo
             let centerX = floor(width / (2 * scl)) * scl;
             let centerY = floor(height / (2 * scl)) * scl;
             s.x = centerX;
             s.y = centerY;
-            s.dir(1, 0);
-
+            s.dir(1, 0); // Começa movendo para a direita
             pickLocation();
+
+            // Limpa os limites dos botões p5.js ao reiniciar
+            winButtonBounds = null;
+            menuGameButtonBounds = null;
+            menuClockButtonBounds = null;
         }
 
         /**
-         * Função de loop do p5.js.
+         * Escolhe um local aleatório para a comida, garantindo que não colida com a cobrinha.
          */
-        function draw() {
-            background(45, 55, 72);
+        function pickLocation() {
+            let cols = floor(width / scl);
+            let rows = floor(height / scl);
 
-            // O desenho só acontece se a visualização for 'game' ou 'win' ou 'game_over'
-            if (currentView === 'game') {
-                // Lógica do jogo
-                s.update();
-                s.checkDeath();
+            // Escolhe um local aleatório na grade
+            food = createVector(floor(random(cols)), floor(random(rows)));
+            food.mult(scl);
 
-                drawFood();
-
-                if (s.eat(food)) {
-                    score++;
-                    pickLocation();
+            // Verifica se a comida colidiu com a cauda da cobra
+            for (let i = 0; i < s.tail.length; i++) {
+                if (food.x === s.tail[i].x && food.y === s.tail[i].y) {
+                    pickLocation(); // Tenta novamente
+                    return;
                 }
-
-                s.show();
-                drawScore();
-
-                // Verifica a condição de vitória
-                if (score >= WIN_SCORE) {
-                    currentView = 'win';
-                }
-            }
-
-            if (currentView === 'splash') {
-                drawSplashScreen();
-            } else if (currentView === 'game_over') {
-                drawGameOverScreen();
-            } else if (currentView === 'win') {
-                drawWinScreen();
             }
         }
 
+        // =======================================================
+        // FUNÇÕES DE DESENHO (DRAW SCREENS)
+        // =======================================================
+
         /**
-         * Desenha a tela de abertura.
+         * Desenha o Menu Principal (Estilo Bloco).
          */
-        function drawSplashScreen() {
-            textSize(64);
-            fill(255, 255, 255);
+        function drawMenuScreen() {
+            const btnSize = 140;
+            const gap = 30;
+            const totalWidth = 2 * btnSize + gap;
+            const startX = width / 2 - totalWidth / 2;
+            const btnY = height / 2 - btnSize / 2 + 30;
+            const cornerRadius = 20;
+            const shadowOffset = 10;
+
+            // Título Principal
+            textSize(50);
             textAlign(CENTER, CENTER);
-            text('JOGO DA COBRINHA', width / 2, height / 2 - 80);
+            fill(0, 0, 0, 150); // Sombra do título
+            text('SELECIONE UMA OPÇÃO', width / 2 + 3, btnY - 120 + 3);
+            fill(255, 255, 150); // Título principal (Amarelo claro)
+            text('SELECIONE UMA OPÇÃO', width / 2, btnY - 120);
 
-            textSize(36);
-            fill(150, 255, 150);
-            text('Pressione ESPAÇO para começar o jogo', width / 2, height / 2 + 20);
+            // --- Bloco JOGO DA COBRINHA (Esquerda) ---
+            const gameBtnX = startX;
+            menuGameButtonBounds = { x: gameBtnX, y: btnY, w: btnSize, h: btnSize };
 
-            textSize(20);
-            fill(100, 150, 200);
-            text('Use as setas ou WASD para se mover.', width / 2, height / 2 + 80);
+            // Desenho do Botão (Sombra e Principal)
+            fill(40, 160, 100); // Sombra (Verde Escuro)
+            rect(gameBtnX, btnY + shadowOffset, btnSize, btnSize, cornerRadius);
+            fill(66, 225, 153); // Principal (Verde brilhante)
+            rect(gameBtnX, btnY, btnSize, btnSize, cornerRadius);
+
+            // Conteúdo (Ícone e Texto)
+            textSize(50);
+            fill(45, 55, 72); // Cor do texto/ícone
+            text('🐍', gameBtnX + btnSize / 2, btnY + btnSize * 0.4);
+            textSize(18);
+            text('JOGO DA', gameBtnX + btnSize / 2, btnY + btnSize * 0.7);
+            text('COBRINHA', gameBtnX + btnSize / 2, btnY + btnSize * 0.85);
+
+
+            // --- Bloco VER RELÓGIO (Direita) ---
+            const clockBtnX = startX + btnSize + gap;
+            menuClockButtonBounds = { x: clockBtnX, y: btnY, w: btnSize, h: btnSize };
+
+            // Desenho do Botão (Sombra e Principal)
+            fill(40, 90, 150); // Sombra (Azul Escuro)
+            rect(clockBtnX, btnY + shadowOffset, btnSize, btnSize, cornerRadius);
+            fill(66, 153, 225); // Principal (Azul suave)
+            rect(clockBtnX, btnY, btnSize, btnSize, cornerRadius);
+
+            // Conteúdo (Ícone e Texto)
+            textSize(50);
+            fill(45, 55, 72);
+            text('⏰', clockBtnX + btnSize / 2, btnY + btnSize * 0.4);
+            textSize(18);
+            text('VER', clockBtnX + btnSize / 2, btnY + btnSize * 0.7);
+            text('RELÓGIO', clockBtnX + btnSize / 2, btnY + btnSize * 0.85);
+
+            // Instrução de atalho
+            textSize(22);
+            fill(180, 255, 180);
+            text('Pressione ESPAÇO para Iniciar o Jogo Rápido', width / 2, btnY + btnSize + 70);
         }
 
         /**
-         * Desenha a tela de fim de jogo.
+         * Desenha a tela de fim de jogo (GAME OVER).
          */
         function drawGameOverScreen() {
             textSize(48);
-            fill(255, 255, 255);
+            fill(255, 50, 50); // Vermelho para GAME OVER
             textAlign(CENTER, CENTER);
             text('FIM DE JOGO!', width / 2, height / 2 - 40);
 
             textSize(28);
+            fill(255, 255, 255);
             text('Pontuação Final: ' + score, width / 2, height / 2 + 10);
 
             textSize(24);
             fill(150, 200, 255);
-            text('Pressione ESPAÇO para Reiniciar', width / 2, height / 2 + 50);
+            text('Pressione ESPAÇO para ir para o Menu', width / 2, height / 2 + 50);
         }
 
         /**
-         * Desenha a tela de vitória, incluindo o botão de "próximo jogo".
+         * Desenha a tela de vitória.
          */
         function drawWinScreen() {
             textSize(48);
-            fill(150, 255, 150);
+            fill(150, 255, 150); // Verde brilhante para Vitória
             textAlign(CENTER, CENTER);
             text('VOCÊ VENCEU!', width / 2, height / 2 - 60);
 
@@ -323,24 +533,25 @@
             // Instrução alternativa de reinício (SPACE)
             textSize(18);
             fill(200, 255, 255);
-            text('Ou Pressione ESPAÇO para Jogar Novamente', width / 2, height / 2 + 120);
+            text('Ou Pressione ESPAÇO para ir para o Menu', width / 2, height / 2 + 120);
         }
 
         /**
-         * Desenha a comida.
+         * Desenha a comida (quadrado laranja com efeito de perspectiva).
          */
         function drawFood() {
+            // Efeito de perspectiva: Comida no topo é menor, no rodapé é maior
             let perspectiveFactor = map(food.y, 0, height, 0.8, 1.2);
             let foodSize = scl * perspectiveFactor;
 
-            fill(255, 176, 58); // Laranja Ligeiramente Mais Escuro (#FFB03A)
+            fill(255, 176, 58); // Laranja claro/amarelo para a fruta
             noStroke();
             rectMode(CORNER);
             rect(food.x, food.y, foodSize, foodSize, 5);
         }
 
         /**
-         * Desenha a pontuação.
+         * Desenha a pontuação no canto superior direito.
          */
         function drawScore() {
             textSize(28);
@@ -348,6 +559,10 @@
             textAlign(RIGHT, TOP);
             text('PONTOS: ' + score, width - 10, 10);
         }
+
+        // =======================================================
+        // CLASSE COBRINHA (SNAKE)
+        // =======================================================
 
         /**
          * Construtor do objeto Snake (Cobrinha).
@@ -357,10 +572,14 @@
             this.y = 0;
             this.xspeed = 1;
             this.yspeed = 0;
-            this.total = 0;
-            this.tail = [];
+            this.total = 0; // Comprimento da cauda
+            this.tail = []; // Array da cauda
 
+            /**
+             * Define a direção da cobrinha, impedindo o movimento reverso imediato.
+             */
             this.dir = function(x, y) {
+                // Impede que a cobra se mova na direção oposta à sua direção atual
                 if (this.xspeed === -x && x !== 0) return;
                 if (this.yspeed === -y && y !== 0) return;
 
@@ -368,7 +587,11 @@
                 this.yspeed = y;
             }
 
+            /**
+             * Verifica se a cobrinha comeu a comida.
+             */
             this.eat = function(pos) {
+                // Verifica a colisão (distância menor que 1, já que estão na grade)
                 let d = dist(this.x, this.y, pos.x, pos.y);
                 if (d < 1) {
                     this.total++;
@@ -378,163 +601,86 @@
                 }
             }
 
+            /**
+             * Atualiza a posição e a cauda da cobrinha.
+             */
             this.update = function() {
+                // Adiciona a posição atual (cabeça) à cauda
                 this.tail.push(createVector(this.x, this.y));
 
+                // Se a cauda for maior que o total (tamanho da cobrinha), remove o último elemento
                 if (this.tail.length > this.total) {
                     this.tail.shift();
                 }
 
+                // Move a cabeça da cobrinha
                 this.x = this.x + this.xspeed * scl;
                 this.y = this.y + this.yspeed * scl;
             }
 
+            /**
+             * Verifica se a cobrinha colidiu com a parede ou com a própria cauda.
+             */
             this.checkDeath = function() {
+                // Colisão com as paredes
                 if (this.x >= width || this.x < 0 || this.y >= height || this.y < 0) {
-                    isGameOver = true;
-                    currentView = 'game_over'; // Atualiza o estado
+                    currentView = 'game_over';
                     return;
                 }
 
+                // Colisão com a própria cauda
                 for (let i = 0; i < this.tail.length; i++) {
                     let pos = this.tail[i];
                     let d = dist(this.x, this.y, pos.x, pos.y);
                     if (this.total > 0 && d < 1) {
-                        isGameOver = true;
-                        currentView = 'game_over'; // Atualiza o estado
+                        currentView = 'game_over';
                         return;
                     }
                 }
             }
 
+            /**
+             * Desenha a cobrinha na tela.
+             */
             this.show = function() {
                 noStroke();
                 rectMode(CORNER);
 
-                // Desenha o corpo
+                // Desenha o corpo com um efeito de escurecimento (alfa) na cauda
                 for (let i = 0; i < this.tail.length; i++) {
                     let pos = this.tail[i];
+                    // Aplica o fator de perspectiva no tamanho do segmento
                     let perspectiveFactor = map(pos.y, 0, height, 0.8, 1.2);
                     let segmentSize = scl * perspectiveFactor;
+                    // Segmentos mais antigos são mais transparentes
                     let alpha = map(i, 0, this.tail.length - 1, 150, 255);
 
-                    fill(255, 140, 0, alpha); // Laranja Escuro (#FF8C00)
+                    fill(255, 140, 0, alpha); // Laranja Escuro/Corpo
                     rect(pos.x, pos.y, segmentSize, segmentSize, 3);
                 }
 
                 // Desenha a cabeça
                 let headPerspectiveFactor = map(this.y, 0, height, 0.8, 1.2);
                 let headSize = scl * headPerspectiveFactor;
-                fill(255, 140, 0); // Laranja Escuro (#FF8C00)
+                fill(255, 140, 0); // Laranja Escuro Sólido/Cabeça
                 rect(this.x, this.y, headSize, headSize, 3);
 
-                // Desenha os "olhos"
+                // Desenha os "olhos" pretos
                 fill(0);
                 let eyeSize = headSize * 0.15;
-                if (this.xspeed === 1) {
+                if (this.xspeed === 1) { // Direita
                     ellipse(this.x + headSize * 0.7, this.y + headSize * 0.3, eyeSize);
                     ellipse(this.x + headSize * 0.7, this.y + headSize * 0.7, eyeSize);
-                } else if (this.xspeed === -1) {
+                } else if (this.xspeed === -1) { // Esquerda
                     ellipse(this.x + headSize * 0.3, this.y + headSize * 0.3, eyeSize);
                     ellipse(this.x + headSize * 0.3, this.y + headSize * 0.7, eyeSize);
-                } else if (this.yspeed === 1) {
+                } else if (this.yspeed === 1) { // Baixo
                     ellipse(this.x + headSize * 0.3, this.y + headSize * 0.7, eyeSize);
                     ellipse(this.x + headSize * 0.7, this.y + headSize * 0.7, eyeSize);
-                } else if (this.yspeed === -1) {
+                } else if (this.yspeed === -1) { // Cima
                     ellipse(this.x + headSize * 0.3, this.y + headSize * 0.3, eyeSize);
                     ellipse(this.x + headSize * 0.7, this.y + headSize * 0.3, eyeSize);
                 }
-            }
-        }
-
-        /**
-         * Escolhe um local aleatório para a comida.
-         */
-        function pickLocation() {
-            let cols = floor(width / scl);
-            let rows = floor(height / scl);
-
-            food = createVector(floor(random(cols)), floor(random(rows)));
-            food.mult(scl);
-
-            for (let i = 0; i < s.tail.length; i++) {
-                if (food.x === s.tail[i].x && food.y === s.tail[i].y) {
-                    pickLocation();
-                    return;
-                }
-            }
-        }
-
-        /**
-         * Função chamada a cada toque de tecla.
-         */
-        function keyPressed() {
-            // Se estiver no relógio, ignorar
-            if (currentView === 'clock') return;
-
-            // ESPAÇO (32) sempre trata início/reinício
-            if (keyCode === 32) {
-                if (currentView === 'splash') {
-                    showView('game');
-                    return;
-                }
-                if (currentView === 'game_over' || currentView === 'win') {
-                    showView('splash');
-                    return;
-                }
-            }
-
-            // Movimento só se estiver no jogo ativo
-            if (currentView === 'game') {
-                switch (keyCode) {
-                    case UP_ARROW:
-                    case 87: // W (Cima)
-                        s.dir(0, -1);
-                        break;
-                    case DOWN_ARROW:
-                    case 83: // S (Baixo)
-                        s.dir(0, 1);
-                        break;
-                    case LEFT_ARROW:
-                    case 65: // A (Esquerda)
-                        s.dir(-1, 0);
-                        break;
-                    case RIGHT_ARROW:
-                    case 68: // D (Direita)
-                        s.dir(1, 0);
-                        break;
-                }
-            }
-        }
-
-        /**
-         * Verifica cliques do mouse.
-         */
-        function mouseClicked() {
-            // Clicar no botão "VER RELÓGIO"
-            if (currentView === 'win' && winButtonBounds) {
-                if (
-                    mouseX > winButtonBounds.x &&
-                    mouseX < winButtonBounds.x + winButtonBounds.w &&
-                    mouseY > winButtonBounds.y &&
-                    mouseY < winButtonBounds.y + winButtonBounds.h
-                ) {
-                    showView('clock');
-                }
-            }
-        }
-
-
-        /**
-         * Ajusta o canvas quando a janela é redimensionada.
-         */
-        function windowResized() {
-             // Só redimensiona o canvas se a vista não for 'clock'
-            if (currentView !== 'clock') {
-                const newWidth = Math.min(window.innerWidth - 32, 640);
-                const newHeight = Math.min(window.innerHeight - 100, 480);
-                resizeCanvas(newWidth, newHeight);
-                pickLocation();
             }
         }
     </script>
