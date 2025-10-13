@@ -1,688 +1,1319 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jogo da Cobrinha Retro</title>
-    <!-- Inclui a biblioteca p5.js para o jogo -->
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.js"></script>
-    <!-- Inclui o Tailwind CSS para o estilo do relógio e da interface -->
+    <title>Menu e Jogos Integrados</title>
+    <!-- Carrega o Tailwind CSS para estilização moderna e responsiva -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Importa a fonte retrô (VT323) para o jogo e títulos */
-        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        /* Importa a fonte Inter para o relógio digital */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-
+        /* Define a fonte, fundo escuro global e garante o mínimo de altura */
         body {
-            font-family: 'VT323', monospace;
-            color: #fff;
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a2e; /* Dark navy background */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* --- ESTILOS DO NOVO MENU ESCURO (FUNDO DO CARD E TÍTULO) --- */
+
+        /* Ajuste do container principal do menu */
+        #main-menu-view {
+            background-color: #2c2c4a; /* Fundo do card mais claro */
+            border: 1px solid #4a4a75;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Estilo para o título brilhante */
+        .glow-title {
+            color: #ffeb3b; /* Amarelo */
+            text-shadow:
+                0 0 5px rgba(255, 235, 59, 0.8), /* Brilho suave */
+                0 0 10px rgba(0, 0, 0, 0.8), /* Sombra escura para definição */
+                1px 1px 1px #000000; /* Sombra dura */
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        /* Estilo dos botões de opção do menu (Visual 3D) */
+        .menu-option-btn {
+            width: 140px;
+            height: 140px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            transition: transform 0.1s, box-shadow 0.1s;
+            position: relative;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+            padding: 1rem;
+
+            /* Simula elevação 3D */
+            box-shadow: 0 8px 0 0 rgba(0, 0, 0, 0.5);
+            transform: translateY(0);
+        }
+
+        .menu-option-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .menu-option-btn .icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5));
+        }
+
+        .btn-green {
+            background-color: #38c172; /* Teal/Green */
+            color: #1a1a1a;
+        }
+        .btn-blue {
+            background-color: #4a8df6; /* Bright Blue */
+            color: #1a1a1a;
+        }
+
+        /* Estilo para o texto da instrução */
+        .instruction-text {
+            color: #b0c4de; /* Azul claro/cinza */
+            text-shadow: 1px 1px 1px #000;
+            font-weight: 500;
+        }
+
+        /* Estilo para o Relógio/Data (widget) */
+        #clock-widget {
+            background-color: #3f305e; /* Fundo roxo escuro */
+            border: 2px solid #8e44ad; /* Borda roxa vibrante */
+            box-shadow: 0 0 15px rgba(142, 68, 173, 0.5);
+        }
+        #clock-widget .time {
+            color: #c0c0f0; /* Azul claro/roxo */
+            text-shadow: 0 0 10px rgba(142, 68, 173, 0.8);
+        }
+        #clock-widget .date {
+            color: #999;
+        }
+
+
+        /* --- ESTILOS DO JOGO DE DAMAS (EXISTENTE) --- */
+
+        /* Estilo da casa do tabuleiro */
+        .casa {
+            width: 100%;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-            margin: 0;
-            flex-direction: column;
+            transition: background-color 0.2s;
+        }
 
-            /* Necessário para posicionar o pseudo-elemento de fundo */
+        /* Cores das casas */
+        .casa.clara { background-color: #f0d2b4; } /* Cor para casas onde não há jogo */
+        .casa.escura { background-color: #b58863; } /* Cor onde o jogo acontece */
+
+        /* Estilo da peça BASE */
+        .peca {
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            transition: transform 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid rgba(0, 0, 0, 0.2);
             position: relative;
-            background-color: #1a202c; /* Cor de fundo de fallback/base */
         }
 
-        /* Pseudo-elemento para o fundo da página (Imagem com filtro) */
-        body::before {
-            content: '';
+        /* Estilos Dinâmicos das Peças */
+        .peca.peca-branca {
+            background-color: #ffffff;
+            border-color: #a0a0a0;
+            box-shadow: 0 0 0 2px #fff, 0 3px 6px rgba(0, 0, 0, 0.4);
+        }
+        .peca.peca-preta {
+            background-color: #2c2c2c;
+            border-color: #1a1a1a;
+            box-shadow: 0 0 0 2px #333, 0 3px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        /* DAMA (Rei) */
+        .peca.dama::after {
+            content: '👑'; /* Ícone de coroa para representar a Dama */
+            font-size: 1.2rem;
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            /* Usando a imagem carregada */
-            background-image: url('uploaded:image_bb8868.png-2577ce53-c52d-4631-a115-5157a8977ef6');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-            z-index: -1; /* Coloca a imagem atrás de todo o conteúdo */
-
-            /* Filtros para garantir visibilidade do texto */
-            filter: brightness(1.5) blur(2px) contrast(1.1);
-        }
-
-        /* Estilo da borda do canvas do jogo */
-        main {
-            border: 4px solid #4a5568;
-            border-radius: 8px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-            transition: box-shadow 0.3s ease;
-        }
-        /* Efeito de brilho ao focar (simulando a fruta) */
-        main:focus-within {
-             box-shadow: 0 0 30px rgba(255, 176, 58, 0.7);
-        }
-        .instructions {
-            margin-top: 1.5rem;
-            color: #a0aec0;
-            font-size: 1.5rem;
-            text-align: center;
+            color: gold;
             text-shadow: 1px 1px 2px #000;
         }
 
-        /* Estilos da Visão do Relógio */
-        #clock-view {
-            width: 100%;
-            height: 100vh;
-            display: none; /* Escondido por padrão */
-            font-family: 'Inter', sans-serif; /* Usar Inter para o relógio */
-            /* Fundo com um gradiente */
-            background: linear-gradient(135deg, #a7b7c2, #5a6d7a);
+        /* Efeitos de Interação */
+        .peca:hover { transform: scale(1.05); }
+        .selecionada { outline: 3px solid #f97316; outline-offset: 1px; } /* Laranja vibrante */
+        .movimento-valido { background-color: #10b981 !important; cursor: pointer; } /* Verde para movimentos */
+        .movimento-valido:hover { filter: brightness(1.2); }
+
+        /* Estilo do tabuleiro em si (Grid para 8x8) */
+        #tabuleiro {
+            display: grid;
+            grid-template-columns: repeat(8, minmax(0, 1fr));
+            grid-template-rows: repeat(8, minmax(0, 1fr));
+            border: 4px solid #4a5568;
+            aspect-ratio: 1 / 1; /* Garante que é um quadrado */
+            max-width: 500px;
+            width: 95vw;
         }
-        #clock-view .clock-container {
-             /* Centraliza o relógio dentro da view */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            text-align: center;
+
+        /* --- ESTILOS DO JOGO DA COBRINHA (SNAKE) --- */
+        #snake-game-view {
+            background-color: #1e1e3f; /* Fundo escuro para a tela de jogo */
         }
-        /* Animação do sapo */
-        @keyframes dance {
-            0%, 100% { transform: translateY(0); }
-            25% { transform: translateY(-5px) rotate(5deg); }
-            50% { transform: translateY(0) rotate(-5deg); }
-            75% { transform: translateY(-5px) rotate(5deg); }
+        #snake-canvas {
+            background-color: #0d1117; /* Fundo do grid do jogo */
+            border: 2px solid #5a5a8a;
+            box-shadow: 0 0 15px rgba(100, 100, 150, 0.5);
+            margin-top: 1rem;
+            max-width: 500px;
+            width: 95vw;
+            aspect-ratio: 1 / 1;
         }
-        #sapo {
-            animation: dance 1s infinite alternate;
+        #snake-score-display {
+            font-size: 1.5rem;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+
+        /* --- Estilos do Top Menu (ajustados para o tema escuro) --- */
+        #top-menu {
+            background-color: #1f2937; /* Dark Gray */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+        .menu-btn {
+            background-color: #4a4a75; /* Darker buttons in the top bar */
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .menu-btn:hover {
+            background-color: #666699;
+            transform: translateY(-1px);
+        }
+        .menu-btn.active {
+            background-color: #f97316; /* Orange-500 */
+        }
+
+        /* Responsividade geral */
+        @media (min-width: 768px) {
+            #tabuleiro, #snake-canvas { max-width: 600px; }
         }
     </style>
 </head>
-<body class="text-white flex items-center justify-center min-h-screen">
+<body class="min-h-screen flex flex-col items-center">
 
-    <!-- 1. Visão do Jogo (p5.js Canvas) e Menu -->
-    <div id="game-view" class="flex flex-col items-center">
-        <!-- O p5.js irá injetar o canvas dentro desta tag <main> -->
-        <main id="main"></main>
-        <!-- Instruções de movimento, visível apenas no modo Jogo -->
-        <div id="game-instructions" class="instructions" style="display: none;">
-            Use as setas ou **WASD** para mover a cobrinha!
+    <!-- 1. BARRA DE NAVEGAÇÃO / MENU -->
+    <nav id="top-menu" class="w-full sticky top-0 z-10 flex justify-center">
+        <div class="flex space-x-4 max-w-4xl w-full">
+            <!-- BOTÃO INÍCIO (Menu Principal) -->
+            <button class="menu-btn" onclick="showView('main-menu-view')">INÍCIO</button>
+            <!-- BOTÃO DAMAS -->
+            <button id="btn-damas-menu" class="menu-btn" onclick="showView('checkers-view')">DAMAS</button>
+            <!-- BOTÃO COBRINHA -->
+            <button id="btn-snake-menu" class="menu-btn" onclick="showView('snake-game-view'); resizeCanvas(); resetGame();">COBRINHA</button>
         </div>
-    </div>
+    </nav>
 
-    <!-- 2. Visão do Relógio (HTML puro) -->
-    <div id="clock-view">
-        <div class="clock-container">
-            <div class="flex flex-col md:flex-row items-center p-8 bg-gray-800 rounded-2xl shadow-lg border-2 border-gray-700 max-w-lg w-full mx-4">
+    <!-- 2. CONTAINER PRINCIPAL (Centralizado na tela) -->
+    <div class="w-full flex-grow flex flex-col items-center p-4">
 
-                <!-- Sapo dançante animado -->
-                <div id="sapo" class="text-6xl md:text-8xl mb-4 md:mb-0 md:mr-6">
-                    🐸
+        <!-- 2a. TELA DO MENU PRINCIPAL (COM COBRINHA E RELÓGIO) -->
+        <div id="main-menu-view" class="w-full max-w-sm rounded-xl shadow-2xl p-8 hidden flex flex-col items-center">
+
+            <!-- Widget de Relógio/Data -->
+            <div id="clock-widget" class="p-4 mb-10 rounded-xl flex flex-col items-center">
+                <p id="clock-time" class="time text-5xl font-extrabold">12:00:00</p>
+                <p id="clock-date" class="date text-sm mt-1">01/01/2025</p>
+            </div>
+
+            <h1 class="glow-title text-4xl text-center mb-10">
+                SELECIONE UMA OPÇÃO
+            </h1>
+
+            <div class="flex justify-center space-x-6 mb-10">
+                <!-- JOGO DA COBRINHA -->
+                <button class="menu-option-btn btn-green" onclick="showView('snake-game-view'); startGame();">
+                    <span class="icon">🐍</span>
+                    <span class="text-base font-bold">JOGAR</span>
+                </button>
+                <!-- VER RELÓGIO (Apenas um placeholder, já que o widget está visível) -->
+                <button class="menu-option-btn btn-blue" onclick="alert('O relógio já está visível!')">
+                    <span class="icon">⏰</span>
+                    <span class="text-base font-bold">VER RELÓGIO</span>
+                </button>
+            </div>
+
+            <p class="instruction-text text-center text-sm">
+                Pressione <strong class="font-extrabold text-white">ESPAÇO</strong> para Iniciar o Jogo Rápido (Cobrinha)
+            </p>
+        </div>
+
+        <!-- 2b. TELA DO JOGO DA COBRINHA (SNAKE) -->
+        <div id="snake-game-view" class="w-full max-w-lg rounded-xl shadow-2xl p-6 hidden flex-col items-center">
+            <h1 class="text-3xl font-extrabold text-white text-center mb-4">Jogo da Cobrinha</h1>
+            <p id="snake-score-display" class="text-xl font-semibold text-green-400 mb-4">Pontuação: 0</p>
+
+            <canvas id="snake-canvas" width="400" height="400" class="rounded-lg"></canvas>
+
+            <div id="snake-message" class="text-center mt-4">
+                <p class="text-gray-300">Use as setas ou **WASD** para mover a cobrinha!</p>
+                <button id="snake-start-btn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200 mt-4">
+                    INICIAR JOGO
+                </button>
+            </div>
+        </div>
+
+        <!-- 2c. TELA DO JOGO DE DAMAS (CHECKERS) -->
+        <div id="checkers-view" class="w-full max-w-lg bg-white rounded-xl shadow-2xl p-6 mb-6 hidden">
+
+            <!-- Conteúdo do Jogo de Damas (Capa/Seleção de Modo) -->
+            <div id="tela-capa">
+                 <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-red-500 text-center mb-6 border-b-2 pb-2 border-gray-200">
+                    O Jogo de Damas
+                </h1>
+
+                <p class="text-xl font-semibold text-gray-700 mb-6 text-center">
+                    Selecione sua cor e modo de jogo:
+                </p>
+
+                <!-- Seleção de Cor -->
+                <div class="mb-10">
+                    <h2 class="text-center text-xl font-bold mb-5 text-gray-800">Sua Cor (VOCÊ)</h2>
+                    <div class="flex justify-center space-x-6">
+                        <!-- Escolher Brancas -->
+                        <button id="select-white" data-color="white" class="btn-cor shadow-md bg-white text-black selected flex flex-col items-center">
+                            <span class="font-semibold text-base mb-2">Brancas</span>
+                            <div class="peca peca-branca w-10 h-10 pointer-events-none"></div>
+                        </button>
+                        <!-- Escolher Pretas -->
+                        <button id="select-black" data-color="black" class="btn-cor shadow-md bg-gray-800 text-white flex flex-col items-center">
+                            <span class="font-semibold text-base mb-2">Pretas</span>
+                            <div class="peca peca-preta w-10 h-10 pointer-events-none"></div>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="flex flex-col items-center">
-                    <h1 class="text-3xl font-bold mb-4 text-center">Horário de Brasília</h1>
-                    <div id="relogio" class="text-6xl md:text-7xl font-mono font-bold text-green-400">
-                        00:00:00
-                    </div>
-                    <p class="mt-4 text-sm text-gray-400 text-center">A hora é atualizada a cada segundo.</p>
+                <!-- Seleção de Modo -->
+                <div class="flex flex-col space-y-4">
+                    <button id="btn-2v2-capa" class="flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 shadow-xl text-lg">
+                        <span class="mr-3">👥</span> 2 Jogadores (PvP)
+                    </button>
+                    <button id="btn-bot-capa" class="flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 shadow-xl text-lg">
+                        <span class="mr-3">🤖</span> Contra Bot (PvBot)
+                    </button>
                 </div>
             </div>
 
-            <!-- Botão de Voltar ao Menu -->
-            <button id="back-to-menu-btn" onclick="showView('menu')"
-                class="mt-8 px-6 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg transition duration-300 hover:bg-red-700 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50">
-                VOLTAR AO MENU
+            <!-- Conteúdo do Jogo (Inicialmente oculto) -->
+            <div id="conteudo-jogo" class="hidden">
+
+                <h1 class="text-3xl font-extrabold text-gray-800 text-center mb-4">
+                    <span id="player-status-title" class="text-lg font-normal text-gray-500 block">Você joga com: Brancas</span>
+                    Jogo de Damas
+                </h1>
+
+                <!-- Display de Pontuação -->
+                <div id="score-display" class="flex justify-around text-center mb-4 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                    <div class="score-j1">
+                        <p class="text-sm font-semibold text-blue-600">Você comeu:</p>
+                        <p id="score-j1-count" class="text-2xl font-bold text-gray-800">0</p>
+                    </div>
+                    <div class="score-j2">
+                        <p class="text-sm font-semibold text-red-600">Adversário comeu:</p>
+                        <p id="score-j2-count" class="text-2xl font-bold text-gray-800">0</p>
+                    </div>
+                </div>
+                <!-- Exibição de Status -->
+                <div class="text-center p-3 rounded-lg border-2 border-gray-200">
+                    <p id="status-jogo" class="text-lg font-bold text-gray-700">Turno de Brancas.</p>
+                </div>
+            </div>
+             <!-- Tabuleiro de Jogo (Oculto inicialmente) -->
+            <div id="tabuleiro" class="hidden">
+                <!-- As casas do tabuleiro são geradas pelo JavaScript -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal de Fim de Jogo Damas (Oculto inicialmente) -->
+    <div id="modal-fim-jogo" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-sm">
+            <h2 id="modal-titulo" class="text-3xl font-bold mb-4 text-green-600"></h2>
+            <p id="modal-mensagem" class="text-lg mb-6 text-gray-700"></p>
+            <button id="btn-reiniciar-damas" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200">
+                Novo Jogo
             </button>
         </div>
     </div>
 
-    <script>
-        // =======================================================
-        // VARIÁVEIS GLOBAIS E ESTADO DO JOGO
-        // =======================================================
-        let s;      
-        let food;    
-        let scl = 20;
-        let score = 0;
-        let isGameOver = false;
-        const WIN_SCORE = 10; // Pontuação necessária para vencer
+    <!-- Modal de Fim de Jogo Cobrinha (Oculto inicialmente) -->
+    <div id="snake-modal-fim-jogo" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-sm">
+            <h2 class="text-3xl font-bold mb-4 text-red-600">FIM DE JOGO</h2>
+            <p id="snake-final-score" class="text-lg mb-6 text-gray-700 font-bold"></p>
+            <button id="btn-reiniciar-snake" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200">
+                Tentar Novamente
+            </button>
+        </div>
+    </div>
 
-        // Limites dos botões desenhados no p5.js (para detecção de clique)
-        let winButtonBounds = null;
-        let menuGameButtonBounds = null;
-        let menuClockButtonBounds = null;
 
-        // Variável para controlar a visualização atual. Inicia em 'menu'.
-        let currentView = 'menu'; // 'menu', 'game', 'game_over', 'win', 'clock'
+<script>
+    // --- LÓGICA DE GERENCIAMENTO DE VISÃO (MENU/JOGO) ---
+    const menuView = document.getElementById('main-menu-view');
+    const checkersView = document.getElementById('checkers-view');
+    const snakeView = document.getElementById('snake-game-view');
+    const tabuleiroEl = document.getElementById('tabuleiro');
+    const menuButtons = document.querySelectorAll('.menu-btn');
 
-        // Variável para armazenar o intervalo de atualização do relógio
-        let clockInterval;
+    function showView(viewId) {
+        // Para a Cobrinha e Esconde o Tabuleiro de Damas
+        stopSnakeGame();
+        tabuleiroEl.classList.add('hidden');
 
-        // =======================================================
-        // FUNÇÕES DE GERENCIAMENTO DE VISTA (VIEW)
-        // =======================================================
+        // Esconde todas as vistas principais
+        menuView.classList.add('hidden', 'flex');
+        checkersView.classList.add('hidden');
+        snakeView.classList.add('hidden', 'flex-col');
 
-        /**
-         * Alterna a visualização entre o menu/jogo (p5.js) e o relógio (HTML).
-         */
-        function showView(viewName) {
-            currentView = viewName;
-            const gameView = document.getElementById('game-view');
-            const clockView = document.getElementById('clock-view');
-            const gameInstructions = document.getElementById('game-instructions');
+        // Remove destaque de todos os botões do menu
+        menuButtons.forEach(btn => btn.classList.remove('active'));
 
-            if (viewName === 'clock') {
-                gameView.style.display = 'none';
-                clockView.style.display = 'flex';
-                // Garante que o relógio está a funcionar
-                initClock();
-            } else {
-                gameView.style.display = 'flex';
-                clockView.style.display = 'none';
-
-                // Exibe as instruções de movimento apenas quando o jogo estiver ativo
-                gameInstructions.style.display = (viewName === 'game') ? 'block' : 'none';
-
-                // Reinicia o jogo ao voltar para o menu ou iniciar o jogo
-                if (viewName === 'menu' || viewName === 'game') {
-                    resetGame();
-                }
-            }
+        if (viewId === 'main-menu-view') {
+            menuView.classList.remove('hidden');
+            menuView.classList.add('flex');
+            document.querySelector('#top-menu button:nth-child(1)').classList.add('active');
+        } else if (viewId === 'checkers-view') {
+            checkersView.classList.remove('hidden');
+            document.getElementById('btn-damas-menu').classList.add('active');
+            setupDamasInitial(); // Garante que a capa do jogo esteja visível se for re-selecionado
+        } else if (viewId === 'snake-game-view') {
+            snakeView.classList.remove('hidden');
+            snakeView.classList.add('flex-col');
+            document.getElementById('btn-snake-menu').classList.add('active');
+            resizeCanvas(); // Garante que o canvas da cobrinha esteja no tamanho correto
         }
+    }
 
-        /**
-         * Inicializa o relógio digital, definindo a hora de Brasília.
-         */
-        function initClock() {
-            // Limpa o intervalo anterior para evitar múltiplos loops
-            if (clockInterval) clearInterval(clockInterval);
+    // Define a vista inicial (para começar no menu, seguindo a estética do usuário)
+    window.onload = () => {
+        showView('main-menu-view');
+        updateClock();
+        setInterval(updateClock, 1000);
+        setupDamasInitial(); // Configura listeners de Damas, mas a view está oculta
+        resizeCanvas(); // Inicializa o tamanho da Cobrinha
+        resetGame(); // Prepara o estado inicial da Cobrinha
+    };
 
-            function atualizarRelogio() {
-                const relogioElemento = document.getElementById('relogio');
-                if (relogioElemento) {
-                    // Usando a API de Data para obter o tempo em São Paulo/Brasília
-                    const agora = new Date();
-                    const opcoes = {
-                        timeZone: 'America/Sao_Paulo',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: false
-                    };
-                    const horarioBrasilia = agora.toLocaleTimeString('pt-BR', opcoes);
-                    relogioElemento.textContent = horarioBrasilia;
-                }
-            }
+    // --- WIDGET RELÓGIO ---
+    function updateClock() {
+        const now = new Date();
+        const timeEl = document.getElementById('clock-time');
+        const dateEl = document.getElementById('clock-date');
 
-            atualizarRelogio();
-            clockInterval = setInterval(atualizarRelogio, 1000);
+        const timeString = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const dateString = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        timeEl.textContent = timeString;
+        dateEl.textContent = dateString;
+    }
+
+    // Adiciona o listener para o atalho de teclado (Pressione ESPAÇO) no menu principal
+    document.addEventListener('keydown', (e) => {
+        if (!menuView.classList.contains('hidden') && e.code === 'Space') {
+            e.preventDefault();
+            // Inicia o JOGO DA COBRINHA (Jogo Rápido)
+            showView('snake-game-view');
+            startGame();
         }
+    });
 
-        // =======================================================
-        // FUNÇÕES DO P5.JS (SETUP, DRAW, EVENTOS)
-        // =======================================================
 
-        /**
-         * Inicializa o p5.js e o canvas.
-         */
-        function setup() {
-            // Define o tamanho do canvas para ser responsivo (máximo 640x480)
-            const canvasWidth = Math.min(window.innerWidth - 32, 640);
-            const canvasHeight = Math.min(window.innerHeight - 100, 480);
-            const canvas = createCanvas(canvasWidth, canvasHeight);
-            canvas.parent('main');
+    // =========================================================================
+    //                            JOGO DA COBRINHA (SNAKE)
+    // =========================================================================
 
-            // Define a taxa de quadros (velocidade do jogo)
-            frameRate(10);
-            resetGame();
+    const canvas = document.getElementById('snake-canvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('snake-start-btn');
+    const scoreDisplay = document.getElementById('snake-score-display');
+    const messageEl = document.getElementById('snake-message');
+    const modalSnakeEl = document.getElementById('snake-modal-fim-jogo');
+    const modalSnakeScoreEl = document.getElementById('snake-final-score');
+    const restartSnakeBtn = document.getElementById('btn-reiniciar-snake');
 
-            // Inicia o jogo na tela do menu
-            showView('menu');
+    const tileCount = 20; // Grid de 20x20
+    let tileSize;
+    let snake = [];
+    let apple = {};
+    let xVelocity = 1;
+    let yVelocity = 0;
+    let score = 0;
+    let gameLoopInterval;
+    let isGameRunning = false;
+    let isInputBlocked = false; // Para evitar movimentos duplos ou reversão imediata
 
-            // Inicia o loop do relógio para que ele esteja sempre atualizado em segundo plano
-            initClock();
+    // Ajusta o tamanho do canvas para ser responsivo e calcula o tamanho dos tiles
+    function resizeCanvas() {
+        // Pega o tamanho real do elemento HTML no layout
+        const containerSize = Math.min(canvas.parentElement.offsetWidth - 32, 500); // 500px max ou 95vw (considerando padding)
+
+        // Define o tamanho do canvas para ser um quadrado
+        canvas.width = containerSize;
+        canvas.height = containerSize;
+
+        // Recalcula o tamanho de cada tile (peça da cobrinha)
+        tileSize = canvas.width / tileCount;
+
+        // Se o jogo estiver rodando, redesenha imediatamente
+        if (isGameRunning) {
+             drawGame();
+        } else {
+             drawInitialScreen(); // Desenha a tela inicial se o jogo estiver parado
         }
+    }
+    window.addEventListener('resize', resizeCanvas);
 
-        /**
-         * Função de loop principal do p5.js.
-         */
-        function draw() {
-            // Fundo do canvas do JOGO: Cor sólida escura (Dark Gray/Blue-ish)
-            // Se estiver no Menu, o background será transparente para mostrar a imagem de fundo do BODY
-            if (currentView === 'menu') {
-                background(45, 55, 72, 0);
-                drawMenuScreen();
-            } else {
-                background(45, 55, 72); // Fundo sólido para as telas de jogo/fim/vitória
+    // Desenha a tela inicial (Cobrinha pequena e maçã)
+    function drawInitialScreen() {
+         ctx.fillStyle = '#0d1117';
+         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                if (currentView === 'game') {
-                    // --- Lógica do Jogo Ativo ---
-                    s.update();
-                    s.checkDeath();
+         // Desenha a cobrinha inicial (para visualização no menu)
+         ctx.fillStyle = '#4cc9f0';
+         snake.forEach(segment => {
+            ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize - 1, tileSize - 1);
+        });
 
-                    drawFood();
+         // Desenha a maçã inicial
+        ctx.fillStyle = '#ff4d6d';
+        ctx.fillRect(apple.x * tileSize, apple.y * tileSize, tileSize - 1, tileSize - 1);
+    }
 
-                    if (s.eat(food)) {
-                        score++;
-                        pickLocation();
-                    }
+    function resetGame() {
+        stopSnakeGame(); // Garante que o loop anterior parou
+        snake = [{ x: 10, y: 10 }]; // Posição inicial no centro
+        apple = { x: 5, y: 5 }; // Maçã em posição inicial
+        xVelocity = 1;
+        yVelocity = 0;
+        score = 0;
+        isInputBlocked = false;
+        isGameRunning = false;
 
-                    s.show();
-                    drawScore();
+        scoreDisplay.textContent = `Pontuação: 0`;
+        messageEl.innerHTML = '<p class="text-gray-300">Use as setas ou **WASD** para mover a cobrinha!</p>';
+        startBtn.classList.remove('hidden');
 
-                    // Verifica a condição de vitória
-                    if (score >= WIN_SCORE) {
-                        currentView = 'win';
-                    }
-                } else if (currentView === 'game_over') {
-                    drawGameOverScreen();
-                } else if (currentView === 'win') {
-                    drawWinScreen();
-                }
-            }
-        }
+        drawInitialScreen(); // Desenha o canvas inicial
+        hideSnakeModal();
+    }
 
-        /**
-         * Função chamada a cada toque de tecla (WASD/Setas para movimento, ESPAÇO para Menu/Início).
-         */
-        function keyPressed() {
-            // Se estiver no relógio, ignorar
-            if (currentView === 'clock') return;
-
-            // ESPAÇO (32) sempre trata início/reinício/menu
-            if (keyCode === 32) {
-                if (currentView === 'menu') {
-                    showView('game');
-                    return;
-                }
-                if (currentView === 'game_over' || currentView === 'win') {
-                    showView('menu');
-                    return;
-                }
-            }
-
-            // Movimento só se estiver no jogo ativo
-            if (currentView === 'game') {
-                switch (keyCode) {
-                    case UP_ARROW:
-                    case 87: // W (Cima)
-                        s.dir(0, -1);
-                        break;
-                    case DOWN_ARROW:
-                    case 83: // S (Baixo)
-                        s.dir(0, 1);
-                        break;
-                    case LEFT_ARROW:
-                    case 65: // A (Esquerda)
-                        s.dir(-1, 0);
-                        break;
-                    case RIGHT_ARROW:
-                    case 68: // D (Direita)
-                        s.dir(1, 0);
-                        break;
-                }
-            }
-        }
-
-        /**
-         * Verifica cliques do mouse nos botões desenhados no p5.js (Menu e Vitória).
-         */
-        function mouseClicked() {
-            // Função auxiliar para verificar se o mouse está sobre o botão
-            const isOver = (bounds) => {
-                return mouseX > bounds.x &&
-                       mouseX < bounds.x + bounds.w &&
-                       mouseY > bounds.y &&
-                       mouseY < bounds.y + bounds.h;
+    // Cria uma nova posição para a maçã, garantindo que não colida com a cobrinha
+    function createApple() {
+        let newApplePosition;
+        do {
+            newApplePosition = {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount)
             };
+        } while (snake.some(segment => segment.x === newApplePosition.x && segment.y === newApplePosition.y));
+        apple = newApplePosition;
+    }
 
-            // Clicar nos botões do Menu
-            if (currentView === 'menu') {
-                if (menuGameButtonBounds && isOver(menuGameButtonBounds)) {
-                    showView('game');
-                } else if (menuClockButtonBounds && isOver(menuClockButtonBounds)) {
-                    showView('clock');
+    // Desenha o jogo (fundo, cobrinha, maçã)
+    function drawGame() {
+        // Fundo (Grid)
+        ctx.fillStyle = '#0d1117';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Maçã
+        ctx.fillStyle = '#ff4d6d'; // Cor da Maçã (Rosa/Vermelho)
+        ctx.fillRect(apple.x * tileSize, apple.y * tileSize, tileSize - 1, tileSize - 1);
+
+        // Cobrinha (Percorre do corpo para a cabeça)
+        ctx.fillStyle = '#4cc9f0'; // Cor da Cobrinha (Ciano)
+        snake.forEach((segment, index) => {
+            // Desenha a cabeça ligeiramente diferente, se desejar (opcional)
+            if (index === 0) {
+                 ctx.fillStyle = '#00f7ff'; // Cor da cabeça
+            } else {
+                 ctx.fillStyle = '#4cc9f0';
+            }
+            ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize - 1, tileSize - 1);
+        });
+    }
+
+    // Lógica principal do jogo (chamada em loop)
+    function updateGame() {
+        // Atualiza a posição da cabeça da cobra
+        let head = { x: snake[0].x + xVelocity, y: snake[0].y + yVelocity };
+
+        // 1. Checa colisão com parede
+        if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+            endGame("A cobrinha bateu na parede!");
+            return;
+        }
+
+        // 2. Checa colisão com corpo (começa a checar do segundo segmento)
+        if (snake.some((segment, index) => index > 0 && segment.x === head.x && segment.y === head.y)) {
+            endGame("A cobrinha mordeu o próprio rabo!");
+            return;
+        }
+
+        // Adiciona nova cabeça
+        snake.unshift(head);
+
+        // 3. Checa se comeu a maçã
+        if (head.x === apple.x && head.y === apple.y) {
+            score++;
+            scoreDisplay.textContent = `Pontuação: ${score}`;
+            createApple(); // Cria nova maçã
+        } else {
+            // Remove o rabo (movimento normal)
+            snake.pop();
+        }
+
+        drawGame();
+        isInputBlocked = false; // Libera o input após o tick do jogo
+    }
+
+    // Inicia o loop do jogo
+    function startGame() {
+        if (isGameRunning) return;
+        isGameRunning = true;
+
+        resetGame(); // Reinicia o estado
+        createApple();
+        startBtn.classList.add('hidden');
+        messageEl.textContent = 'Mantenha-se em movimento!';
+
+        // Define a velocidade do jogo (1000 / 100ms = 10 FPS)
+        gameLoopInterval = setInterval(updateGame, 100);
+    }
+
+    // Para o loop do jogo
+    function stopSnakeGame() {
+        if (gameLoopInterval) {
+            clearInterval(gameLoopInterval);
+            gameLoopInterval = null;
+        }
+        isGameRunning = false;
+    }
+
+    // Finaliza o jogo e mostra o modal
+    function endGame(reason) {
+        stopSnakeGame();
+        modalSnakeScoreEl.innerHTML = `<p class="mb-2 text-xl text-red-700">${reason}</p>Sua pontuação final foi: <span class="text-3xl text-red-700">${score}</span>`;
+        modalSnakeEl.classList.remove('hidden');
+        modalSnakeEl.classList.add('flex');
+    }
+
+    function hideSnakeModal() {
+        modalSnakeEl.classList.add('hidden');
+        modalSnakeEl.classList.remove('flex');
+    }
+
+    // Event Listeners Snake
+    startBtn.addEventListener('click', startGame);
+    restartSnakeBtn.addEventListener('click', () => {
+        hideSnakeModal();
+        // Não inicia automaticamente, volta para a tela de 'INICIAR JOGO'
+        resetGame();
+    });
+
+    // Lida com a entrada do teclado
+    document.addEventListener('keydown', (e) => {
+        // Só aceita input se o jogo estiver rodando E a tela da cobrinha estiver ativa E o input não estiver bloqueado
+        if (!isGameRunning || snakeView.classList.contains('hidden') || isInputBlocked) return;
+
+        let newX = xVelocity;
+        let newY = yVelocity;
+
+        switch (e.key) {
+            case 'ArrowUp':
+            case 'w':
+            case 'W':
+                // Impede reverter (se movendo para baixo, não pode ir para cima)
+                if (yVelocity !== 1) { newX = 0; newY = -1; isInputBlocked = true; }
+                break;
+            case 'ArrowDown':
+            case 's':
+            case 'S':
+                // Impede reverter (se movendo para cima, não pode ir para baixo)
+                if (yVelocity !== -1) { newX = 0; newY = 1; isInputBlocked = true; }
+                break;
+            case 'ArrowLeft':
+            case 'a':
+            case 'A':
+                // Impede reverter (se movendo para a direita, não pode ir para a esquerda)
+                if (xVelocity !== 1) { newX = -1; newY = 0; isInputBlocked = true; }
+                break;
+            case 'ArrowRight':
+            case 'd':
+            case 'D':
+                // Impede reverter (se movendo para a esquerda, não pode ir para a direita)
+                if (xVelocity !== -1) { newX = 1; newY = 0; isInputBlocked = true; }
+                break;
+        }
+
+        // Aplica as novas velocidades se o movimento for permitido
+        xVelocity = newX;
+        yVelocity = newY;
+    });
+
+    // =========================================================================
+    //                            JOGO DE DAMAS (CHECKERS)
+    // =========================================================================
+
+    // --- VARIÁVEIS GLOBAIS E ESTADO DO JOGO ---
+
+    // Configurações do jogo:
+    const VAZIO = 0;
+    const JOGADOR_1 = 1;      // Jogador Humano (sempre controla as peças de baixo, R5-R7)
+    const JOGADOR_2 = 2;      // Oponente (sempre controla as peças de cima, R0-R2)
+    const DAMA_1 = 3;         // Dama do Jogador Humano
+    const DAMA_2 = 4;         // Dama do Oponente
+
+    let board = [];
+    let turnoAtual = JOGADOR_1;
+    let modoJogo = null; // 'PVP' ou 'PVBOT'
+    let pecaSelecionada = null;
+    let capturasObrigatorias = [];
+    let multiJumpPeca = null;
+    let isGameOver = false;
+
+    // Define a cor visual que o JOGADOR_1 está usando (true = Brancas)
+    let userColorIsWhite = true;
+
+    // Rastreamento de pontuação (peças capturadas)
+    let pecasCapturadasJ1 = 0; // Capturas feitas pelo JOGADOR 1 (Você)
+    let pecasCapturadasJ2 = 0; // Capturas feitas pelo JOGADOR 2 (Adversário/Bot)
+
+    // Elementos do DOM - Damas
+    const statusEl = document.getElementById('status-jogo');
+    const modalEl = document.getElementById('modal-fim-jogo');
+    const modalTituloEl = document.getElementById('modal-titulo');
+    const modalMensagemEl = document.getElementById('modal-mensagem');
+    const scoreJ1El = document.getElementById('score-j1-count');
+    const scoreJ2El = document.getElementById('score-j2-count');
+
+    const telaCapaEl = document.getElementById('tela-capa');
+    const conteudoJogoEl = document.getElementById('conteudo-jogo');
+    const playerStatusTitleEl = document.getElementById('player-status-title');
+
+    // --- INICIALIZAÇÃO E CONTROLES DE MODO DAMAS ---
+
+    // Inicializa o estado do tabuleiro com a disposição inicial
+    function inicializarBoard() {
+        board = Array(8).fill(0).map(() => Array(8).fill(VAZIO));
+
+        pecasCapturadasJ1 = 0;
+        pecasCapturadasJ2 = 0;
+
+        // Peças do JOGADOR_2 (em cima)
+        for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 8; c++) {
+                if ((r + c) % 2 !== 0) {
+                    board[r][c] = JOGADOR_2;
                 }
             }
-
-            // Clicar no botão "VER RELÓGIO" na tela de vitória
-            if (currentView === 'win' && winButtonBounds && isOver(winButtonBounds)) {
-                showView('clock');
-            }
         }
 
-        /**
-         * Ajusta o canvas quando a janela é redimensionada.
-         */
-        function windowResized() {
-             // Só redimensiona o canvas se a vista não for 'clock'
-            if (currentView !== 'clock') {
-                const newWidth = Math.min(window.innerWidth - 32, 640);
-                const newHeight = Math.min(window.innerHeight - 100, 480);
-                resizeCanvas(newWidth, newHeight);
-                // Gera nova localização para a comida após redimensionamento
-                pickLocation();
-            }
-        }
-
-        // =======================================================
-        // FUNÇÕES DO JOGO (COBRINHA E COMIDA)
-        // =======================================================
-
-        /**
-         * Reinicia o estado do jogo.
-         */
-        function resetGame() {
-            s = new Snake();
-            isGameOver = false;
-            score = 0;
-            // Centraliza a cobrinha no início do jogo
-            let centerX = floor(width / (2 * scl)) * scl;
-            let centerY = floor(height / (2 * scl)) * scl;
-            s.x = centerX;
-            s.y = centerY;
-            s.dir(1, 0); // Começa movendo para a direita
-            pickLocation();
-
-            // Limpa os limites dos botões p5.js ao reiniciar
-            winButtonBounds = null;
-            menuGameButtonBounds = null;
-            menuClockButtonBounds = null;
-        }
-
-        /**
-         * Escolhe um local aleatório para a comida, garantindo que não colida com a cobrinha.
-         */
-        function pickLocation() {
-            let cols = floor(width / scl);
-            let rows = floor(height / scl);
-
-            // Escolhe um local aleatório na grade
-            food = createVector(floor(random(cols)), floor(random(rows)));
-            food.mult(scl);
-
-            // Verifica se a comida colidiu com a cauda da cobra
-            for (let i = 0; i < s.tail.length; i++) {
-                if (food.x === s.tail[i].x && food.y === s.tail[i].y) {
-                    pickLocation(); // Tenta novamente
-                    return;
+        // Peças do JOGADOR_1 (em baixo)
+        for (let r = 5; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if ((r + c) % 2 !== 0) {
+                    board[r][c] = JOGADOR_1;
                 }
             }
         }
+    }
 
-        // =======================================================
-        // FUNÇÕES DE DESENHO (DRAW SCREENS)
-        // =======================================================
+    // Função principal para iniciar o jogo em um modo específico
+    function iniciarJogoDamas(mode) {
+        modoJogo = mode;
+        isGameOver = false;
+        inicializarBoard();
 
-        /**
-         * Desenha o Menu Principal (Estilo Bloco).
-         */
-        function drawMenuScreen() {
-            const btnSize = 140;
-            const gap = 30;
-            const totalWidth = 2 * btnSize + gap;
-            const startX = width / 2 - totalWidth / 2;
-            const btnY = height / 2 - btnSize / 2 + 30;
-            const cornerRadius = 20;
-            const shadowOffset = 10;
+        // Esconde a capa e mostra o conteúdo do jogo/tabuleiro
+        telaCapaEl.classList.add('hidden');
+        conteudoJogoEl.classList.remove('hidden');
+        tabuleiroEl.classList.remove('hidden');
 
-            // Título Principal
-            textSize(50);
-            textAlign(CENTER, CENTER);
-            fill(0, 0, 0, 150); // Sombra do título
-            text('SELECIONE UMA OPÇÃO', width / 2 + 3, btnY - 120 + 3);
-            fill(255, 255, 150); // Título principal (Amarelo claro)
-            text('SELECIONE UMA OPÇÃO', width / 2, btnY - 120);
+        // Se o jogador 1 (humano) escolheu Pretas, ele começa de SEGUNDO.
+        // Se o jogador 1 (humano) escolheu Brancas, ele começa de PRIMEIRO.
+        turnoAtual = userColorIsWhite ? JOGADOR_1 : JOGADOR_2;
 
-            // --- Bloco JOGO DA COBRINHA (Esquerda) ---
-            const gameBtnX = startX;
-            menuGameButtonBounds = { x: gameBtnX, y: btnY, w: btnSize, h: btnSize };
+        renderizarTabuleiro();
+        pecaSelecionada = null;
+        multiJumpPeca = null;
+        capturasObrigatorias = checkAllCaptures(turnoAtual); // Capturas para quem realmente começa
+        esconderModalDamas();
+        atualizarStatus();
+        renderizarPontuacao();
 
-            // Desenho do Botão (Sombra e Principal)
-            fill(40, 160, 100); // Sombra (Verde Escuro)
-            rect(gameBtnX, btnY + shadowOffset, btnSize, btnSize, cornerRadius);
-            fill(66, 225, 153); // Principal (Verde brilhante)
-            rect(gameBtnX, btnY, btnSize, btnSize, cornerRadius);
+        // Atualiza a cor exibida no título do jogo
+        const cor = userColorIsWhite ? 'Brancas' : 'Pretas';
+        playerStatusTitleEl.textContent = `Você joga com: ${cor}`;
 
-            // Conteúdo (Ícone e Texto)
-            textSize(50);
-            fill(45, 55, 72); // Cor do texto/ícone
-            text('🐍', gameBtnX + btnSize / 2, btnY + btnSize * 0.4);
-            textSize(18);
-            text('JOGO DA', gameBtnX + btnSize / 2, btnY + btnSize * 0.7);
-            text('COBRINHA', gameBtnX + btnSize / 2, btnY + btnSize * 0.85);
-
-
-            // --- Bloco VER RELÓGIO (Direita) ---
-            const clockBtnX = startX + btnSize + gap;
-            menuClockButtonBounds = { x: clockBtnX, y: btnY, w: btnSize, h: btnSize };
-
-            // Desenho do Botão (Sombra e Principal)
-            fill(40, 90, 150); // Sombra (Azul Escuro)
-            rect(clockBtnX, btnY + shadowOffset, btnSize, btnSize, cornerRadius);
-            fill(66, 153, 225); // Principal (Azul suave)
-            rect(clockBtnX, btnY, btnSize, btnSize, cornerRadius);
-
-            // Conteúdo (Ícone e Texto)
-            textSize(50);
-            fill(45, 55, 72);
-            text('⏰', clockBtnX + btnSize / 2, btnY + btnSize * 0.4);
-            textSize(18);
-            text('VER', clockBtnX + btnSize / 2, btnY + btnSize * 0.7);
-            text('RELÓGIO', clockBtnX + btnSize / 2, btnY + btnSize * 0.85);
-
-            // Instrução de atalho
-            textSize(22);
-            fill(180, 255, 180);
-            text('Pressione ESPAÇO para Iniciar o Jogo Rápido', width / 2, btnY + btnSize + 70);
+        // Se o Bot for o primeiro a jogar
+        if (modoJogo === 'PVBOT' && turnoAtual === JOGADOR_2) {
+             setTimeout(fazerJogadaBot, 1000);
         }
+    }
 
-        /**
-         * Desenha a tela de fim de jogo (GAME OVER).
-         */
-        function drawGameOverScreen() {
-            textSize(48);
-            fill(255, 50, 50); // Vermelho para GAME OVER
-            textAlign(CENTER, CENTER);
-            text('FIM DE JOGO!', width / 2, height / 2 - 40);
+    // --- Configuração da Capa e Event Listeners Damas ---
+    function setupDamasInitial() {
+        // Por padrão, esconde o tabuleiro e mostra a capa (dentro da CheckersView)
+        tabuleiroEl.classList.add('hidden');
+        conteudoJogoEl.classList.add('hidden');
+        telaCapaEl.classList.remove('hidden');
 
-            textSize(28);
-            fill(255, 255, 255);
-            text('Pontuação Final: ' + score, width / 2, height / 2 + 10);
+        // Lógica de seleção de cor na capa
+        const selectWhiteEl = document.getElementById('select-white');
+        const selectBlackEl = document.getElementById('select-black');
 
-            textSize(24);
-            fill(150, 200, 255);
-            text('Pressione ESPAÇO para ir para o Menu', width / 2, height / 2 + 50);
+        const updateColorSelection = (isWhite) => {
+            userColorIsWhite = isWhite;
+            selectWhiteEl.classList.toggle('selected', isWhite);
+            selectBlackEl.classList.toggle('selected', !isWhite);
+        };
+
+        selectWhiteEl.addEventListener('click', () => updateColorSelection(true));
+        selectBlackEl.addEventListener('click', () => updateColorSelection(false));
+
+        // Event Listeners para modos de jogo
+        document.getElementById('btn-2v2-capa').addEventListener('click', () => iniciarJogoDamas('PVP'));
+        document.getElementById('btn-bot-capa').addEventListener('click', () => iniciarJogoDamas('PVBOT'));
+    }
+
+    // Event Listener para o botão de reiniciar (no modal de fim de jogo)
+    document.getElementById('btn-reiniciar-damas').addEventListener('click', () => {
+        // Volta para a tela de seleção de modo/cor
+        setupDamasInitial();
+        esconderModalDamas();
+    });
+
+    // --- RENDERIZAÇÃO VISUAL DO TABULEIRO DAMAS ---
+
+    // Retorna a classe de cor CSS para uma peça baseada no player e na escolha do usuário
+    function getPecaColorClass(pecaTipo) {
+        // Se a peça for do JOGADOR_1 (você)
+        if (pecaTipo === JOGADOR_1 || pecaTipo === DAMA_1) {
+            return userColorIsWhite ? 'peca-branca' : 'peca-preta';
         }
-
-        /**
-         * Desenha a tela de vitória.
-         */
-        function drawWinScreen() {
-            textSize(48);
-            fill(150, 255, 150); // Verde brilhante para Vitória
-            textAlign(CENTER, CENTER);
-            text('VOCÊ VENCEU!', width / 2, height / 2 - 60);
-
-            textSize(28);
-            fill(255);
-            text('Pontuação Final: ' + score, width / 2, height / 2 - 10);
-
-            // --- Desenho do Botão "VER RELÓGIO" ---
-
-            let btnW = 300;
-            let btnH = 45;
-            let btnX = width / 2 - btnW / 2;
-            let btnY = height / 2 + 50;
-
-            // Armazena as dimensões do botão para detecção de clique
-            winButtonBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
-
-            // Botão background (Azul suave)
-            fill(66, 153, 225);
-            rect(btnX, btnY, btnW, btnH, 8);
-
-            // Botão texto
-            textSize(22);
-            fill(255);
-            textAlign(CENTER, CENTER);
-            text('VER RELÓGIO', width / 2, btnY + btnH / 2 + 3);
-
-            // Instrução alternativa de reinício (SPACE)
-            textSize(18);
-            fill(200, 255, 255);
-            text('Ou Pressione ESPAÇO para ir para o Menu', width / 2, height / 2 + 120);
+        // Se a peça for do JOGADOR_2 (oponente)
+        if (pecaTipo === JOGADOR_2 || pecaTipo === DAMA_2) {
+            return userColorIsWhite ? 'peca-preta' : 'peca-branca';
         }
+        return '';
+    }
 
-        /**
-         * Desenha a comida (quadrado laranja com efeito de perspectiva).
-         */
-        function drawFood() {
-            // Efeito de perspectiva: Comida no topo é menor, no rodapé é maior
-            let perspectiveFactor = map(food.y, 0, height, 0.8, 1.2);
-            let foodSize = scl * perspectiveFactor;
+    // Cria os elementos HTML e reflete o estado 'board' na tela
+    function renderizarTabuleiro() {
+        tabuleiroEl.innerHTML = '';
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const casaEl = document.createElement('div');
+                casaEl.classList.add('casa', (r + c) % 2 === 0 ? 'clara' : 'escura');
+                casaEl.dataset.r = r;
+                casaEl.dataset.c = c;
 
-            fill(255, 176, 58); // Laranja claro/amarelo para a fruta
-            noStroke();
-            rectMode(CORNER);
-            rect(food.x, food.y, foodSize, foodSize, 5);
-        }
-
-        /**
-         * Desenha a pontuação no canto superior direito.
-         */
-        function drawScore() {
-            textSize(28);
-            fill(255, 255, 255);
-            textAlign(RIGHT, TOP);
-            text('PONTOS: ' + score, width - 10, 10);
-        }
-
-        // =======================================================
-        // CLASSE COBRINHA (SNAKE)
-        // =======================================================
-
-        /**
-         * Construtor do objeto Snake (Cobrinha).
-         */
-        function Snake() {
-            this.x = 0;
-            this.y = 0;
-            this.xspeed = 1;
-            this.yspeed = 0;
-            this.total = 0; // Comprimento da cauda
-            this.tail = []; // Array da cauda
-
-            /**
-             * Define a direção da cobrinha, impedindo o movimento reverso imediato.
-             */
-            this.dir = function(x, y) {
-                // Impede que a cobra se mova na direção oposta à sua direção atual
-                if (this.xspeed === -x && x !== 0) return;
-                if (this.yspeed === -y && y !== 0) return;
-
-                this.xspeed = x;
-                this.yspeed = y;
-            }
-
-            /**
-             * Verifica se a cobrinha comeu a comida.
-             */
-            this.eat = function(pos) {
-                // Verifica a colisão (distância menor que 1, já que estão na grade)
-                let d = dist(this.x, this.y, pos.x, pos.y);
-                if (d < 1) {
-                    this.total++;
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-
-            /**
-             * Atualiza a posição e a cauda da cobrinha.
-             */
-            this.update = function() {
-                // Adiciona a posição atual (cabeça) à cauda
-                this.tail.push(createVector(this.x, this.y));
-
-                // Se a cauda for maior que o total (tamanho da cobrinha), remove o último elemento
-                if (this.tail.length > this.total) {
-                    this.tail.shift();
+                // Adiciona o manipulador de clique apenas para casas escuras
+                if ((r + c) % 2 !== 0) {
+                    casaEl.addEventListener('click', handleCasaClick);
                 }
 
-                // Move a cabeça da cobrinha
-                this.x = this.x + this.xspeed * scl;
-                this.y = this.y + this.yspeed * scl;
-            }
+                // Adiciona a peça, se houver
+                const pecaTipo = board[r][c];
+                if (pecaTipo !== VAZIO) {
+                    const pecaEl = document.createElement('div');
+                    pecaEl.classList.add('peca', getPecaColorClass(pecaTipo));
 
-            /**
-             * Verifica se a cobrinha colidiu com a parede ou com a própria cauda.
-             */
-            this.checkDeath = function() {
-                // Colisão com as paredes
-                if (this.x >= width || this.x < 0 || this.y >= height || this.y < 0) {
-                    currentView = 'game_over';
-                    return;
+                    if (pecaTipo === DAMA_1 || pecaTipo === DAMA_2) {
+                        pecaEl.classList.add('dama');
+                    }
+                    pecaEl.dataset.r = r;
+                    pecaEl.dataset.c = c;
+                    pecaEl.addEventListener('click', handlePecaClick);
+                    casaEl.appendChild(pecaEl);
                 }
+                tabuleiroEl.appendChild(casaEl);
+            }
+        }
+    }
 
-                // Colisão com a própria cauda
-                for (let i = 0; i < this.tail.length; i++) {
-                    let pos = this.tail[i];
-                    let d = dist(this.x, this.y, pos.x, pos.y);
-                    if (this.total > 0 && d < 1) {
-                        currentView = 'game_over';
-                        return;
+    // Atualiza a exibição da pontuação no placar
+    function renderizarPontuacao() {
+        scoreJ1El.textContent = pecasCapturadasJ1; // Você
+        scoreJ2El.textContent = pecasCapturadasJ2; // Adversário
+    }
+
+    // Limpa os destaques de seleção e movimentos válidos
+    function limparDestaques() {
+        document.querySelectorAll('.selecionada, .movimento-valido').forEach(el => {
+            el.classList.remove('selecionada', 'movimento-valido');
+        });
+    }
+
+    // Atualiza o texto de status
+    function atualizarStatus(msg = null) {
+        const corJogadorAtual = (turnoAtual === JOGADOR_1) === userColorIsWhite ? 'Brancas' : 'Pretas';
+        const nomeJogadorAtual = turnoAtual === JOGADOR_1 ? 'Você' : (modoJogo === 'PVBOT' ? 'Bot' : 'Adversário');
+        const corStatus = (turnoAtual === JOGADOR_1) ? 'text-blue-600' : 'text-red-600';
+
+        statusEl.classList.remove('text-blue-600', 'text-gray-700', 'text-red-600');
+
+        let statusText;
+        if (msg) {
+             statusText = msg;
+             statusEl.classList.add('text-gray-700');
+        } else if (capturasObrigatorias.length > 0) {
+            statusText = `Turno de ${nomeJogadorAtual} (${corJogadorAtual}). CAPTURA OBRIGATÓRIA!`;
+        } else if (multiJumpPeca) {
+            statusText = `Turno de ${nomeJogadorAtual} (${corJogadorAtual}). MULTI-CAPTURA!`;
+        } else {
+            statusText = `Turno de ${nomeJogadorAtual} (${corJogadorAtual}).`;
+        }
+
+        statusEl.textContent = statusText;
+        statusEl.classList.add(corStatus);
+    }
+
+    // --- LÓGICA DE MOVIMENTOS E REGRAS DAMAS ---
+
+    // Retorna se uma peça é uma Dama
+    function isKing(pecaTipo) {
+        return pecaTipo === DAMA_1 || pecaTipo === DAMA_2;
+    }
+
+    // Verifica se a peça é do jogador atual
+    function isTurnoDaPeca(pecaTipo) {
+        return (turnoAtual === JOGADOR_1 && (pecaTipo === JOGADOR_1 || pecaTipo === DAMA_1)) ||
+               (turnoAtual === JOGADOR_2 && (pecaTipo === JOGADOR_2 || pecaTipo === DAMA_2));
+    }
+
+    // Encontra TODAS as capturas possíveis para a peça (r, c)
+    function encontrarCapturasParaPeca(r, c, player) {
+        const pecaTipo = board[r][c];
+        if (pecaTipo === VAZIO) return [];
+
+        const isDama = isKing(pecaTipo);
+        const direcoes = isDama ? [[-1, -1], [-1, 1], [1, -1], [1, 1]] :
+                             (player === JOGADOR_1 ? [[-1, -1], [-1, 1]] : [[1, -1], [1, 1]]); // J1 (em baixo) vai para cima (-1); J2 (em cima) vai para baixo (+1)
+
+        const capturas = [];
+        const oponente1 = player === JOGADOR_1 ? JOGADOR_2 : JOGADOR_1;
+        const oponente2 = player === JOGADOR_1 ? DAMA_2 : DAMA_1;
+
+        for (const [dr, dc] of direcoes) {
+            const rMeio = r + dr;
+            const cMeio = c + dc;
+            const rDestino = r + 2 * dr;
+            const cDestino = c + 2 * dc;
+
+            if (rDestino >= 0 && rDestino < 8 && cDestino >= 0 && cDestino < 8) {
+                const pecaMeio = board[rMeio][cMeio];
+                const casaDestino = board[rDestino][cDestino];
+
+                if ((pecaMeio === oponente1 || pecaMeio === oponente2) && casaDestino === VAZIO) {
+                    capturas.push({
+                        fromR: r, fromC: c,
+                        toR: rDestino, toC: cDestino,
+                        captureR: rMeio, captureC: cMeio
+                    });
+                }
+            }
+        }
+        return capturas;
+    }
+
+    // Checa todas as capturas obrigatórias para um jogador (chamado no início do turno)
+    function checkAllCaptures(player) {
+        let allCaptures = [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const pecaTipo = board[r][c];
+                if ((player === JOGADOR_1 && (pecaTipo === JOGADOR_1 || pecaTipo === DAMA_1)) ||
+                    (player === JOGADOR_2 && (pecaTipo === JOGADOR_2 || pecaTipo === DAMA_2))) {
+                    allCaptures = allCaptures.concat(encontrarCapturasParaPeca(r, c, player));
+                }
+            }
+        }
+        return allCaptures;
+    }
+
+    // Encontra movimentos simples válidos para a peça (r, c)
+    function encontrarMovimentosSimples(r, c, player) {
+        const pecaTipo = board[r][c];
+        const isDama = isKing(pecaTipo);
+        const movimentos = [];
+
+        const direcoes = isDama ? [[-1, -1], [-1, 1], [1, -1], [1, 1]] :
+                             (player === JOGADOR_1 ? [[-1, -1], [-1, 1]] : [[1, -1], [1, 1]]);
+
+        for (const [dr, dc] of direcoes) {
+            const rDestino = r + dr;
+            const cDestino = c + dc;
+
+            if (rDestino >= 0 && rDestino < 8 && cDestino >= 0 && cDestino < 8) {
+                if (board[rDestino][cDestino] === VAZIO) {
+                    movimentos.push({ toR: rDestino, toC: cDestino });
+                }
+            }
+        }
+        return movimentos;
+    }
+
+    // Checa se uma peça deve ser promovida a Dama
+    function checarPromocao(r, c) {
+        const pecaTipo = board[r][c];
+        if (pecaTipo === JOGADOR_1 && r === 0) { // J1 alcança a última linha do oponente
+            board[r][c] = DAMA_1;
+        } else if (pecaTipo === JOGADOR_2 && r === 7) { // J2 alcança a última linha do J1
+            board[r][c] = DAMA_2;
+        }
+    }
+
+    // Verifica se o jogo terminou
+    function checarFimDeJogo() {
+        let countJ1 = 0;
+        let countJ2 = 0;
+
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const pecaTipo = board[r][c];
+                if (pecaTipo === JOGADOR_1 || pecaTipo === DAMA_1) countJ1++;
+                if (pecaTipo === JOGADOR_2 || pecaTipo === DAMA_2) countJ2++;
+            }
+        }
+
+        if (countJ1 === 0) return JOGADOR_2;
+        if (countJ2 === 0) return JOGADOR_1;
+
+        // Verifica se o jogador atual tem movimentos disponíveis
+        const player = turnoAtual;
+        const allCaptures = checkAllCaptures(player);
+        if (allCaptures.length > 0) return null; // Tem captura obrigatória
+
+        let hasSimpleMove = false;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const pecaTipo = board[r][c];
+                if ((player === JOGADOR_1 && (pecaTipo === JOGADOR_1 || pecaTipo === DAMA_1)) ||
+                    (player === JOGADOR_2 && (pecaTipo === JOGADOR_2 || pecaTipo === DAMA_2))) {
+                    if (encontrarMovimentosSimples(r, c, player).length > 0) {
+                        hasSimpleMove = true;
+                        break;
                     }
                 }
             }
+            if (hasSimpleMove) break;
+        }
 
-            /**
-             * Desenha a cobrinha na tela.
-             */
-            this.show = function() {
-                noStroke();
-                rectMode(CORNER);
+        if (!hasSimpleMove) {
+            return player === JOGADOR_1 ? JOGADOR_2 : JOGADOR_1; // Vencedor é o oponente (por imobilização)
+        }
 
-                // Desenha o corpo com um efeito de escurecimento (alfa) na cauda
-                for (let i = 0; i < this.tail.length; i++) {
-                    let pos = this.tail[i];
-                    // Aplica o fator de perspectiva no tamanho do segmento
-                    let perspectiveFactor = map(pos.y, 0, height, 0.8, 1.2);
-                    let segmentSize = scl * perspectiveFactor;
-                    // Segmentos mais antigos são mais transparentes
-                    let alpha = map(i, 0, this.tail.length - 1, 150, 255);
+        return null; // O jogo continua
+    }
 
-                    fill(255, 140, 0, alpha); // Laranja Escuro/Corpo
-                    rect(pos.x, pos.y, segmentSize, segmentSize, 3);
+    // Mostra o modal de fim de jogo
+    function mostrarModalDamas(vencedor) {
+        isGameOver = true;
+        const nomeVencedor = vencedor === JOGADOR_1 ? 'Você' : (modoJogo === 'PVBOT' ? 'O Bot' : 'O Adversário');
+        const corVencedor = (vencedor === JOGADOR_1) === userColorIsWhite ? 'Brancas' : 'Pretas';
+        const corModal = vencedor === JOGADOR_1 ? 'text-blue-600' : 'text-red-600';
+
+        modalTituloEl.textContent = `FIM DE JOGO!`;
+        modalTituloEl.classList.remove('text-blue-600', 'text-red-600');
+        modalTituloEl.classList.add(corModal);
+        modalMensagemEl.textContent = `${nomeVencedor} (${corVencedor}) venceu! (${pecasCapturadasJ1} x ${pecasCapturadasJ2})`;
+
+        modalEl.classList.remove('hidden');
+        modalEl.classList.add('flex');
+    }
+
+    // Esconde o modal de fim de jogo
+    function esconderModalDamas() {
+        modalEl.classList.add('hidden');
+        modalEl.classList.remove('flex');
+    }
+
+    // Lida com o clique na peça
+    function handlePecaClick(event) {
+        if (isGameOver || !modoJogo) return;
+        event.stopPropagation();
+
+        const r = parseInt(event.target.dataset.r);
+        const c = parseInt(event.target.dataset.c);
+        const pecaTipo = board[r][c];
+
+        if (!isTurnoDaPeca(pecaTipo)) {
+            atualizarStatus(`Não é seu turno!`);
+            return;
+        }
+
+        // Se for o turno do Bot, ignora
+        if (modoJogo === 'PVBOT' && turnoAtual === JOGADOR_2) return;
+
+        limparDestaques();
+
+        // 1. Enforçar Multi-Captura
+        if (multiJumpPeca && (multiJumpPeca.r !== r || multiJumpPeca.c !== c)) {
+            atualizarStatus("Você deve continuar a captura com a mesma peça!");
+            // Destaque novamente a peça que deve continuar a captura
+            const currentMultiPecaEl = tabuleiroEl.querySelector(`.peca[data-r="${multiJumpPeca.r}"][data-c="${multiJumpPeca.c}"]`);
+            if (currentMultiPecaEl) currentMultiPecaEl.classList.add('selecionada');
+            return;
+        }
+
+        // 2. Enforçar Captura Obrigatória Global
+        if (capturasObrigatorias.length > 0) {
+            const capturasParaEstaPeca = capturasObrigatorias.filter(cap => cap.fromR === r && cap.fromC === c);
+
+            if (capturasParaEstaPeca.length > 0) {
+                pecaSelecionada = { r, c };
+                event.target.classList.add('selecionada');
+
+                capturasParaEstaPeca.forEach(cap => {
+                    const casaDestinoEl = tabuleiroEl.querySelector(`.casa[data-r="${cap.toR}"][data-c="${cap.toC}"]`);
+                    if (casaDestinoEl) casaDestinoEl.classList.add('movimento-valido');
+                });
+                atualizarStatus();
+            } else {
+                pecaSelecionada = null;
+                atualizarStatus(`Há uma CAPTURA OBRIGATÓRIA! Selecione a peça que pode capturar.`);
+            }
+
+        } else {
+            // Permite movimento simples
+            pecaSelecionada = { r, c };
+            event.target.classList.add('selecionada');
+
+            const movimentosValidos = encontrarMovimentosSimples(r, c, turnoAtual);
+
+            movimentosValidos.forEach(m => {
+                const casaDestinoEl = tabuleiroEl.querySelector(`.casa[data-r="${m.toR}"][data-c="${m.toC}"]`);
+                if (casaDestinoEl) casaDestinoEl.classList.add('movimento-valido');
+            });
+            atualizarStatus();
+        }
+    }
+
+    // Lida com o clique na casa (destino de movimento)
+    function handleCasaClick(event) {
+        if (isGameOver || !pecaSelecionada) return;
+
+        const toR = parseInt(event.target.dataset.r);
+        const toC = parseInt(event.target.dataset.c);
+        const fromR = pecaSelecionada.r;
+        const fromC = pecaSelecionada.c;
+
+        limparDestaques();
+
+        let shouldEndTurn = true;
+
+        // 1. Tentar Captura (Prioridade máxima)
+        const capturaValida = capturasObrigatorias.find(cap =>
+            cap.fromR === fromR && cap.fromC === fromC && cap.toR === toR && cap.toC === toC
+        );
+
+        if (capturasObrigatorias.length > 0) {
+
+            if (capturaValida) {
+                executarMovimento(capturaValida.fromR, capturaValida.fromC, capturaValida.toR, capturaValida.toC, capturaValida.captureR, capturaValida.captureC);
+
+                const novasCapturas = encontrarCapturasParaPeca(capturaValida.toR, capturaValida.toC, turnoAtual);
+
+                if (novasCapturas.length > 0) {
+                    shouldEndTurn = false;
+                    pecaSelecionada = { r: capturaValida.toR, c: capturaValida.toC };
+                    capturasObrigatorias = novasCapturas;
+                    multiJumpPeca = pecaSelecionada;
+
+                    // Redesenha para aplicar o destaque de seleção e movimento
+                    renderizarTabuleiro();
+                    const pecaEl = tabuleiroEl.querySelector(`.peca[data-r="${pecaSelecionada.r}"][data-c="${pecaSelecionada.c}"]`);
+                    if (pecaEl) pecaEl.classList.add('selecionada');
+
+                    novasCapturas.forEach(cap => {
+                        const casaDestinoEl = tabuleiroEl.querySelector(`.casa[data-r="${cap.toR}"][data-c="${cap.toC}"]`);
+                        if (casaDestinoEl) casaDestinoEl.classList.add('movimento-valido');
+                    });
+
+                } else {
+                    multiJumpPeca = null;
                 }
 
-                // Desenha a cabeça
-                let headPerspectiveFactor = map(this.y, 0, height, 0.8, 1.2);
-                let headSize = scl * headPerspectiveFactor;
-                fill(255, 140, 0); // Laranja Escuro Sólido/Cabeça
-                rect(this.x, this.y, headSize, headSize, 3);
+            } else {
+                atualizarStatus(`Movimento inválido. Você deve completar a CAPTURA OBRIGATÓRIA.`);
+                pecaSelecionada = null;
+                return;
+            }
 
-                // Desenha os "olhos" pretos
-                fill(0);
-                let eyeSize = headSize * 0.15;
-                if (this.xspeed === 1) { // Direita
-                    ellipse(this.x + headSize * 0.7, this.y + headSize * 0.3, eyeSize);
-                    ellipse(this.x + headSize * 0.7, this.y + headSize * 0.7, eyeSize);
-                } else if (this.xspeed === -1) { // Esquerda
-                    ellipse(this.x + headSize * 0.3, this.y + headSize * 0.3, eyeSize);
-                    ellipse(this.x + headSize * 0.3, this.y + headSize * 0.7, eyeSize);
-                } else if (this.yspeed === 1) { // Baixo
-                    ellipse(this.x + headSize * 0.3, this.y + headSize * 0.7, eyeSize);
-                    ellipse(this.x + headSize * 0.7, this.y + headSize * 0.7, eyeSize);
-                } else if (this.yspeed === -1) { // Cima
-                    ellipse(this.x + headSize * 0.3, this.y + headSize * 0.3, eyeSize);
-                    ellipse(this.x + headSize * 0.7, this.y + headSize * 0.3, eyeSize);
+        // 2. Tentar Movimento Simples (se não houver captura obrigatória)
+        } else {
+            const movimentosValidos = encontrarMovimentosSimples(fromR, fromC, turnoAtual);
+            const moveValido = movimentosValidos.find(m => m.toR === toR && m.toC === toC);
+
+            if (moveValido) {
+                executarMovimento(fromR, fromC, toR, toC);
+            } else {
+                atualizarStatus("Movimento inválido. Selecione um destino verde.");
+                pecaSelecionada = null;
+                return;
+            }
+        }
+
+        // Finaliza o turno e troca de jogador, se não for multi-salto
+        pecaSelecionada = null;
+        if (shouldEndTurn) {
+            proximoTurno();
+        } else {
+            atualizarStatus();
+        }
+    }
+
+    // Executa a alteração no estado do tabuleiro (e na DOM)
+    function executarMovimento(fromR, fromC, toR, toC, captureR = null, captureC = null) {
+        board[toR][toC] = board[fromR][fromC];
+        board[fromR][fromC] = VAZIO;
+
+        if (captureR !== null) {
+            const pecaCapturadaTipo = board[captureR][captureC];
+            board[captureR][captureC] = VAZIO;
+
+            // Contabiliza a peça capturada
+            if (pecaCapturadaTipo === JOGADOR_2 || pecaCapturadaTipo === DAMA_2) {
+                pecasCapturadasJ1++; // J1 (Você) capturou
+            } else if (pecaCapturadaTipo === JOGADOR_1 || pecaCapturadaTipo === DAMA_1) {
+                pecasCapturadasJ2++; // J2 (Adversário/Bot) capturou
+            }
+            renderizarPontuacao();
+        }
+
+        checarPromocao(toR, toC);
+        renderizarTabuleiro();
+    }
+
+    // Passa para o próximo jogador
+    function proximoTurno() {
+        const vencedor = checarFimDeJogo();
+        if (vencedor !== null) {
+            mostrarModalDamas(vencedor);
+            return;
+        }
+
+        turnoAtual = turnoAtual === JOGADOR_1 ? JOGADOR_2 : JOGADOR_1;
+
+        capturasObrigatorias = checkAllCaptures(turnoAtual);
+        multiJumpPeca = null;
+
+        atualizarStatus();
+
+        if (modoJogo === 'PVBOT' && turnoAtual === JOGADOR_2) {
+            setTimeout(fazerJogadaBot, 1000);
+        }
+    }
+
+    // --- LÓGICA DO BOT (IA SIMPLES) DAMAS ---
+
+    // Função auxiliar para fazer o próximo salto do bot
+    function botMultiJump(r, c) {
+        // Encontra capturas (saltos) a partir da nova posição (r, c)
+        const capturas = encontrarCapturasParaPeca(r, c, JOGADOR_2);
+
+        if (capturas.length > 0) {
+            // Escolhe uma captura aleatória para continuar a sequência
+            const jogada = capturas[Math.floor(Math.random() * capturas.length)];
+
+            executarMovimento(jogada.fromR, jogada.fromC, jogada.toR, jogada.toC, jogada.captureR, jogada.captureC);
+
+            // Continua a cadeia de saltos após um pequeno atraso
+            setTimeout(() => botMultiJump(jogada.toR, jogada.toC), 750);
+        } else {
+            // Fim da cadeia de saltos, passa o turno
+            proximoTurno();
+        }
+    }
+
+    function fazerJogadaBot() {
+        if (turnoAtual !== JOGADOR_2 || modoJogo !== 'PVBOT' || isGameOver) return;
+
+        const player = JOGADOR_2;
+        let todosOsMovimentos = [];
+
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const pecaTipo = board[r][c];
+                if (pecaTipo === player || pecaTipo === DAMA_2) {
+                    const capturas = encontrarCapturasParaPeca(r, c, player);
+
+                    if (capturas.length > 0) {
+                        capturas.forEach(cap => {
+                            cap.isCapture = true;
+                            todosOsMovimentos.push(cap);
+                        });
+                    } else if (capturasObrigatorias.length === 0) {
+                        const moves = encontrarMovimentosSimples(r, c, player);
+                        moves.forEach(m => {
+                            m.fromR = r; m.fromC = c;
+                            m.isCapture = false;
+                            todosOsMovimentos.push(m);
+                        });
+                    }
                 }
             }
         }
-    </script>
-</body>
-</html>
+
+        if (todosOsMovimentos.length === 0) {
+             proximoTurno();
+             return;
+        }
+
+        let jogadasDeCaptura = todosOsMovimentos.filter(m => m.isCapture);
+        let jogadasParaMover = todosOsMovimentos.filter(m => !m.isCapture);
+
+        let jogada;
+        if (jogadasDeCaptura.length > 0) {
+            // Prioriza capturas
+            jogada = jogadasDeCaptura[Math.floor(Math.random() * jogadasDeCaptura.length)];
+        } else if (jogadasParaMover.length > 0) {
+            // Faz movimento simples aleatório
+            jogada = jogadasParaMover[Math.floor(Math.random() * jogadasParaMover.length)];
+        } else {
+            proximoTurno();
+            return;
+        }
+
+        // Executa o movimento inicial
+        executarMovimento(jogada.fromR, jogada.fromC, jogada.toR, jogada.toC, jogada.captureR, jogada.captureC);
+
+        // Verifica se houve captura e se pode continuar (multi-salto)
+        if (jogada.isCapture) {
+            setTimeout(() => botMultiJump(jogada.toR, jogada.toC), 750);
+        } else {
+            // Passa o turno
+            proximoTurno();
+        }
+    }
+</script>
