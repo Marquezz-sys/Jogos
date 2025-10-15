@@ -29,7 +29,7 @@
         }
         /* Garantir que o canvas seja fluido em telas menores */
         .game-area-wrapper {
-            max-width: 400px;
+            max-width: 800px;
             width: 100%;
             margin: 0 auto;
         }
@@ -45,8 +45,8 @@
 
     <h1 class="text-4xl font-extrabold text-indigo-400 mb-10 mt-4 md:mt-0">Meu Painel Interativo</h1>
 
-    <!-- Contêiner principal para alinhar os widgets lado a lado no desktop -->
-    <div class="flex flex-col md:flex-row items-start md:items-center justify-center gap-10 w-full max-w-5xl">
+    <!-- Contêiner principal para alinhar os widgets verticalmente -->
+    <div class="flex flex-col items-center justify-center gap-10 w-full max-w-5xl">
 
         <!-- 1. RELÓGIO DIGITAL (Mantido com o estilo legal) -->
         <div class="w-full md:w-auto flex-shrink-0 flex justify-center">
@@ -65,7 +65,7 @@
         <!-- FIM DO RELÓGIO -->
 
         <!-- 2. JOGO DA COBRINHA (Snake Game) -->
-        <div id="game-widget" class="w-full md:w-1/2 flex flex-col items-center p-4 bg-gray-800 rounded-2xl shadow-2xl border-4 border-green-600">
+        <div id="game-widget" class="w-full flex flex-col items-center p-4 bg-gray-800 rounded-2xl shadow-2xl border-4 border-green-600">
 
             <h2 class="text-2xl font-bold text-green-400 mb-4">Jogo da Cobrinha 🐍 (Pontos Ilimitados)</h2>
 
@@ -510,8 +510,8 @@
         window.addEventListener('load', function() {
             const wrapper = document.querySelector('.game-area-wrapper');
 
-            // Calcula o tamanho máximo quadrado baseado no wrapper (limitado a 400px)
-            const newSize = Math.min(wrapper.offsetWidth, 400);
+            // Calcula o tamanho máximo quadrado baseado no wrapper (limitado a 800px)
+            const newSize = Math.min(wrapper.offsetWidth, 800);
 
             // Garante que o tamanho seja um múltiplo de GRID_SIZE
             canvas.width = Math.floor(newSize / GRID_SIZE) * GRID_SIZE;
@@ -529,7 +529,7 @@
         // Adiciona um listener para redimensionamento para manter o canvas responsivo
         window.addEventListener('resize', () => {
             const wrapper = document.querySelector('.game-area-wrapper');
-            const newSize = Math.min(wrapper.offsetWidth, 400);
+            const newSize = Math.min(wrapper.offsetWidth, 800);
 
             const oldWidth = canvas.width;
             const newCanvasSize = Math.floor(newSize / GRID_SIZE) * GRID_SIZE;
